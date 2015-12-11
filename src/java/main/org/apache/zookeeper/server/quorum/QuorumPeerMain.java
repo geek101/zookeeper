@@ -21,9 +21,11 @@ import java.io.File;
 import java.io.IOException;
 
 import javax.management.JMException;
+import java.security.NoSuchAlgorithmException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.jmx.ManagedUtil;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.ZKDatabase;
@@ -31,6 +33,7 @@ import org.apache.zookeeper.server.DatadirCleanupManager;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
+import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 
 /**
  *
@@ -108,7 +111,13 @@ public class QuorumPeerMain {
         purgeMgr.start();
 
         if (args.length == 1 && config.servers.size() > 0) {
-            runFromConfig(config);
+            try {
+                runFromConfig(config);
+            } catch (NoSuchAlgorithmException
+                    | X509Exception.KeyManagerException
+                    | X509Exception.TrustManagerException exp) {
+                throw new ConfigException("SSL init error", exp);
+            }
         } else {
             LOG.warn("Either no config or no quorum defined in config, running "
                     + " in standalone mode");
@@ -117,7 +126,11 @@ public class QuorumPeerMain {
         }
     }
 
-    public void runFromConfig(QuorumPeerConfig config) throws IOException {
+    public void runFromConfig(QuorumPeerConfig config)
+            throws IOException, NoSuchAlgorithmException,
+            X509Exception.KeyManagerException,
+            X509Exception.TrustManagerException
+    {
       try {
           ManagedUtil.registerLog4jMBeans();
       } catch (JMException e) {
@@ -129,7 +142,8 @@ public class QuorumPeerMain {
           ServerCnxnFactory cnxnFactory = ServerCnxnFactory.createFactory();
           cnxnFactory.configure(config.getClientPortAddress(),
                                 config.getMaxClientCnxns());
-  
+          QuorumSocketFactory socketFactory
+                  = QuorumSocketFactory.createDefault();
           quorumPeer = new QuorumPeer();
           quorumPeer.setClientPortAddress(config.getClientPortAddress());
           quorumPeer.setTxnFactory(new FileTxnSnapLog(
@@ -145,6 +159,7 @@ public class QuorumPeerMain {
           quorumPeer.setSyncLimit(config.getSyncLimit());
           quorumPeer.setQuorumVerifier(config.getQuorumVerifier());
           quorumPeer.setCnxnFactory(cnxnFactory);
+          quorumPeer.setSocketFactory(socketFactory);
           quorumPeer.setZKDatabase(new ZKDatabase(quorumPeer.getTxnFactory()));
           quorumPeer.setLearnerType(config.getPeerType());
           quorumPeer.setSyncEnabled(config.getSyncEnabled());

@@ -47,6 +47,7 @@ import org.apache.zookeeper.server.ZooKeeperThread;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
+import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -446,6 +447,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     Election electionAlg;
 
     ServerCnxnFactory cnxnFactory;
+    QuorumSocketFactory socketFactory;
+
     private FileTxnSnapLog logFactory = null;
 
     private final QuorumStats quorumStats;
@@ -463,9 +466,10 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     public QuorumPeer(Map<Long, QuorumServer> quorumPeers, File dataDir,
             File dataLogDir, int electionType,
             long myid, int tickTime, int initLimit, int syncLimit,
-            ServerCnxnFactory cnxnFactory) throws IOException {
+            ServerCnxnFactory cnxnFactory,
+            QuorumSocketFactory socketFactory) throws IOException {
         this(quorumPeers, dataDir, dataLogDir, electionType, myid, tickTime, 
-        		initLimit, syncLimit, false, cnxnFactory, 
+             initLimit, syncLimit, false, cnxnFactory, socketFactory,
         		new QuorumMaj(countParticipants(quorumPeers)));
     }
     
@@ -473,10 +477,12 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             File dataLogDir, int electionType,
             long myid, int tickTime, int initLimit, int syncLimit,
             boolean quorumListenOnAllIPs,
-            ServerCnxnFactory cnxnFactory, 
+            ServerCnxnFactory cnxnFactory,
+            QuorumSocketFactory socketFactory,
             QuorumVerifier quorumConfig) throws IOException {
         this();
         this.cnxnFactory = cnxnFactory;
+        this.socketFactory = socketFactory;
         this.quorumPeers = quorumPeers;
         this.electionType = electionType;
         this.myid = myid;
@@ -621,6 +627,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         this(quorumPeers, snapDir, logDir, electionAlg,
                 myid,tickTime, initLimit,syncLimit, false,
                 ServerCnxnFactory.createFactory(new InetSocketAddress(clientPort), -1),
+                QuorumSocketFactory.createWithoutSSL(),
                 new QuorumMaj(countParticipants(quorumPeers)));
     }
     
@@ -637,6 +644,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         this(quorumPeers, snapDir, logDir, electionAlg,
                 myid,tickTime, initLimit,syncLimit, false,
                 ServerCnxnFactory.createFactory(new InetSocketAddress(clientPort), -1),
+                QuorumSocketFactory.createWithoutSSL(),
                 quorumConfig);
     }
     
@@ -1165,6 +1173,10 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     public void setCnxnFactory(ServerCnxnFactory cnxnFactory) {
         this.cnxnFactory = cnxnFactory;
+    }
+
+    public void setSocketFactory(QuorumSocketFactory socketFactory) {
+        this.socketFactory = socketFactory;
     }
 
     public void setQuorumPeers(Map<Long,QuorumServer> quorumPeers) {

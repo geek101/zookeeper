@@ -41,6 +41,7 @@ import org.apache.zookeeper.server.quorum.Election;
 import org.apache.zookeeper.server.quorum.FLELostMessageTest;
 import org.apache.zookeeper.server.quorum.LeaderElection;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
+import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.apache.zookeeper.server.quorum.Vote;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
 import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
@@ -219,6 +220,7 @@ public class LENonTerminateTest extends ZKTestCase {
             super(quorumPeers, snapDir, logDir, electionAlg,
                     myid,tickTime, initLimit,syncLimit, false,
                     ServerCnxnFactory.createFactory(clientPort, -1),
+                    QuorumSocketFactory.createWithoutSSL(),
                     new QuorumMaj(countParticipants(quorumPeers)));
         }
         
