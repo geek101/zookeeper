@@ -7,6 +7,8 @@ Servers exchange credentials on connect and they are verified by the public key 
 
 ### How to Run
 
+**Java 1.7 and onwards only.**
+
 Pass the following args to JVM enable SSL:
 ```
 -Dquorum.ssl.enabled="true"
