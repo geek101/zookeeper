@@ -41,6 +41,7 @@ import org.apache.jute.OutputArchive;
 import org.apache.jute.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.ServerCnxn;
 import org.apache.zookeeper.server.ZooTrace;
@@ -220,8 +221,8 @@ public class Learner {
      * @throws InterruptedException
      */
     protected void connectToLeader(InetSocketAddress addr) 
-    throws IOException, ConnectException, InterruptedException {
-        sock = new Socket();        
+    throws IOException, ConnectException, InterruptedException, X509Exception {
+        sock = this.self.socketFactory.buildForClient();
         sock.setSoTimeout(self.tickTime * self.initLimit);
         for (int tries = 0; tries < 5; tries++) {
             try {
@@ -235,7 +236,7 @@ public class Learner {
                 } else {
                     LOG.warn("Unexpected exception, tries="+tries+
                             ", connecting to " + addr,e);
-                    sock = new Socket();
+                    sock = this.self.socketFactory.buildForClient();
                     sock.setSoTimeout(self.tickTime * self.initLimit);
                 }
             }
