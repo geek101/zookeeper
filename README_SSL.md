@@ -7,15 +7,15 @@ Servers exchange credentials on connect and they are verified by the public key 
 
 ### How to Run
 
-**Java 1.7 and onwards only.**
+**Suports Java 1.7 and onwards**
 
 Pass the following args to JVM enable SSL:
 ```
 -Dquorum.ssl.enabled="true"
--Dquorum.ssl.keyStore.location="<Private key and signed cert, key store file>"
+-Dquorum.ssl.keyStore.location="<Private key and signed cert, key-store file>"
 -Dquorum.ssl.keyStore.password="<Password for the above>"
--Dquorum.ssl.trustStore.location="<Root CA cert, key store file"
--Dquorum.ssl.trustStore.password="<Password for the above"
+-Dquorum.ssl.trustStore.location="<Root CA cert, key-store file>"
+-Dquorum.ssl.trustStore.password="<Password for the above>"
 ```
 
 Example:
