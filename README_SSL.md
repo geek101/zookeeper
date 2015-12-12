@@ -7,20 +7,28 @@ Servers exchange credentials on connect and they are verified by the public key 
 
 ### How to Run
 
-**Suports Java 1.7 and onwards**
+**Depends Java 1.7+**
 
-Pass the following args to JVM enable SSL:
+##### Building
+
+
+```
+git checkout branch-3.4
+ant jar
+```
+
+Args to enable SSL:
 ```
 -Dquorum.ssl.enabled="true"
--Dquorum.ssl.keyStore.location="<Private key and signed cert, key-store file>"
+-Dquorum.ssl.keyStore.location="<Private key and signed cert, key store file>"
 -Dquorum.ssl.keyStore.password="<Password for the above>"
--Dquorum.ssl.trustStore.location="<Root CA cert, key-store file>"
--Dquorum.ssl.trustStore.password="<Password for the above>"
+-Dquorum.ssl.trustStore.location="<Root CA cert, key store file"
+-Dquorum.ssl.trustStore.password="<Password for the above"
 ```
 
-Example:
+Example run command:
 ```
-java -Djavax.net.debug=ssl:handshake -Dlog4j.debug -Dlog4j.configuration="file:${PWD}/node1.log4j.properties" -Dquorum.ssl.enabled="true" -Dquorum.ssl.keyStore.location="${spath}/x509ca/java/node1.ks" -Dquorum.ssl.keyStore.password="CertPassword1" -Dquorum.ssl.trustStore.location="${spath}/x509ca/java/truststore.ks" -Dquorum.ssl.trustStore.password="StorePass" -Dquorum.ssl.trustStore.rootCA.alias="ca" -cp ${cpath}/zookeeper.jar:${cpath}/lib/* org.apache.zookeeper.server.quorum.QuorumPeerMain $PWD/zoo1.cfg
+java -Dquorum.ssl.enabled="true" -Dquorum.ssl.keyStore.location="node1.ks" -Dquorum.ssl.keyStore.password="CertPassword1" -Dquorum.ssl.trustStore.location="truststore.ks" -Dquorum.ssl.trustStore.password="StorePass" -Dquorum.ssl.trustStore.rootCA.alias="ca" -cp zookeeper.jar:lib/* org.apache.zookeeper.server.quorum.QuorumPeerMain zoo1.cfg
 ```
 
 ##### Note
@@ -77,7 +85,73 @@ bin/zkCli.sh -server 127.0.1.1:2181
 ##### Unit test
 
 Currently unit test expects keystore files to be available via absolute path.
-Edit *src/java/test/org/apache/zookeeper/server/quorum/QuorumSocketFactoryTest.java* and point **PATH** to *resources/* directory
+Edit *src/java/test/org/apache/zookeeper/server/quorum/QuorumSocketFactoryTest.java* and point **PATH** to *resources/* directory.
+
+Also generate certs and keys in *resources/x509ca2* for the negative test to pass.
+
+##### Benchmark
+
+Reference: [Zookeeper performance doc](https://wiki.apache.org/hadoop/ZooKeeper/ServiceLatencyOverview)
+
+###### Configuration
+A 3 Server ensemble with config:
+ * OS - Ubuntu 14.04 x86_64 VM
+ * Java 1.8.0_60
+ * 4 GB Memory
+ * Intel(R) Core(TM) i7-3615QM CPU @ 2.30GHz
+ * 4 Core reserved for VM
+ * 8 Core Macbook with hyperthreading enabled.
+ * SSD for logging and data
+
+###### Runtime args
+
+ * Log level set to WARN
+ * 1 Client
+ * Command used
+  ```
+zk-latencies.py --cluster "127.0.1.1:2181,127.0.1.2:2181,127.0.1.3:2181"--znode_size=100 --znode_count=10000 --timeout=5000 --watch_multiple=5
+```
+ * 5 runs each
+
+###### Results
+
+**SSL Disabled**
+
+```
+110000 ops took 16441.6 ms
+```
+
+Data average of 5 runs
+```
+created 10000 permanent : min=1493, avg=1674.4, max=2283, var=1.11202e+07
+set 10000 : min=1523, avg=1696.2, max=1905, var=11492844
+get 10000 : min=1372, avg=1435.2, max=1500, var=8.23678e+06
+deleted 10000 permanent : min=1191, avg=1376.4, max=1606, var=7.5591e+06
+created 10000 ephemeral : min=1485, avg=1548.4, max=1712, var=9.58304e+06
+watched 50000 : min=7128, avg=7241, max=7346, var=209722940
+deleted 10000 ephemeral : min=1410, avg=1470, max=1587, var=8.63879e+06
+```
+
+**SSL Enabled**
+
+```
+110000 ops took 16721.2 ms
+```
+
+Data average of 5 runs
+```
+created 10000 permanent : min=1514, avg=1745.6, max=2210, var=1.21277e+07
+set 10000 : min=1583, avg=1742, max=1957, var=1.21195e+07
+get 10000 : min=1460, avg=1483.4, max=1513, var=8.80151e+06
+deleted 10000 permanent : min=1059, avg=1353.4, max=1519, var=7.30167e+06
+created 10000 ephemeral : min=1481, avg=1604.8, max=1804, var=1.02897e+07
+watched 50000 : min=7152, avg=7288.8, max=7442, var=2.12497e+08
+deleted 10000 ephemeral : min=1253, avg=1503.2, max=1659, var=9.02019e+06
+```
+
+###### Conclusion
+
+SSL run is 1.7% slower. For this specific test SSL support provided by default Java provider does not seem to impact performance by a large margin. More detailed test with increase in client number and run count is needed
 
 ##### Todo
 
