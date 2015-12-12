@@ -2,8 +2,8 @@
 
 Provides SSL for Leader Election and ZAB i.e ports 3888 and 2888.
 
-Each Zookeeper ensemble will need one self-signed certificate, lets call this root CA and each Zookeeper server will its own certificate signed by the root CA.
-Servers exchange credentials on connect and they are verified by the public key of the stored root CA.
+Each Zookeeper ensemble will need one self-signed certificate, lets call this root CA and each Zookeeper server will need its own certificate signed by the root CA.
+Servers exchange credentials on connect and they are verified by the public key of the stored root CA by either side.
 
 ### How to Run
 
@@ -37,31 +37,35 @@ Keystore password must be the same as password used to store the private key of 
 Keystore cannot have more than 1 key.
 To help with debug please add -Djavax.net.debug=ssl:handshake.
 
-#### Script helpers
+#### Cert generation and test helpers
 
 ##### Generating Root CA and certs for Zookeeper nodes
 Use the scripts and config files in *resources/* directory.
 
 ###### Step 1
-To generate root CA cd to x509ca dir and perform the following steps:
+To generate root CA:
 
 ```
-resources/x509ca$ ../init.sh
+$ cd resources/x509ca
+$ resources/x509ca$ ../init.sh
 ```
 
-> use defaults and enter yes to load root self-signed cert to truststore>
+> use defaults and enter yes to load root self-signed cert to truststore
+> truststore is *resources/x509ca/java/truststore.ks* 
 
 ###### Step 2
 
 Now generate certs for every node, ex:
 
 ```
-resources/x509ca$ ../gencert.sh node1
+$ resources/x509ca$ ../gencert.sh node1
 ```
 
 > you will be prompted for private key password, enter: CertPassword1
 > note: you can enter any password but remember to change the script to support that if you do so.
+> keystore is *resouces/x509ca/node1.ks*
 > Repeat Step 2 for as many nodes as you want.
+> These will be used by step 3.
 
 ###### Step 3
 
