@@ -22,8 +22,8 @@ Args to enable SSL:
 -Dquorum.ssl.enabled="true"
 -Dquorum.ssl.keyStore.location="<Private key and signed cert, key store file>"
 -Dquorum.ssl.keyStore.password="<Password for the above>"
--Dquorum.ssl.trustStore.location="<Root CA cert, key store file"
--Dquorum.ssl.trustStore.password="<Password for the above"
+-Dquorum.ssl.trustStore.location="<Root CA cert, key store file>"
+-Dquorum.ssl.trustStore.password="<Password for the above>"
 ```
 
 Example run command:
