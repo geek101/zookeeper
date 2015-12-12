@@ -7,7 +7,7 @@ Servers exchange credentials on connect and they are verified by the public key 
 
 ### How to Run
 
-**Depends Java 1.7+**
+**Depends on Java 1.7+**
 
 ##### Building
 
@@ -94,7 +94,7 @@ Also generate certs and keys in *resources/x509ca2* for the negative test to pas
 Reference: [Zookeeper performance doc](https://wiki.apache.org/hadoop/ZooKeeper/ServiceLatencyOverview)
 
 ###### Configuration
-A 3 Server ensemble with config:
+A 3 Server ensemble in single VM with config:
  * OS - Ubuntu 14.04 x86_64 VM
  * Java 1.8.0_60
  * 4 GB Memory
@@ -121,7 +121,7 @@ zk-latencies.py --cluster "127.0.1.1:2181,127.0.1.2:2181,127.0.1.3:2181"--znode_
 110000 ops took 16441.6 ms
 ```
 
-Data average of 5 runs
+Data - average of 5 runs
 ```
 created 10000 permanent : min=1493, avg=1674.4, max=2283, var=1.11202e+07
 set 10000 : min=1523, avg=1696.2, max=1905, var=11492844
@@ -138,7 +138,7 @@ deleted 10000 ephemeral : min=1410, avg=1470, max=1587, var=8.63879e+06
 110000 ops took 16721.2 ms
 ```
 
-Data average of 5 runs
+Data - average of 5 runs
 ```
 created 10000 permanent : min=1514, avg=1745.6, max=2210, var=1.21277e+07
 set 10000 : min=1583, avg=1742, max=1957, var=1.21195e+07
