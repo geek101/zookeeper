@@ -34,8 +34,8 @@ import static org.apache.zookeeper.common.X509Exception.*;
 /**
  * XXX: Borrowed from 3.5.x, modified to suite QuorumSocketFactory
  */
-public class X509Util {
-    private static final Logger LOG = LoggerFactory.getLogger(X509Util.class);
+public class DefaultSSLContextFactory implements SSLContextFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultSSLContextFactory.class);
 
     public static final String SSL_VERSION = "TLSv1";
     public static final String KEYSTORE_LOCATION
@@ -58,7 +58,7 @@ public class X509Util {
     final KeyManager[] keyManagers;
     final TrustManager[] trustManagers;
 
-    public X509Util(final String sslVersion,
+    public DefaultSSLContextFactory(final String sslVersion,
                     final String keyStoreLocation,
                     final String keyStorePassword,
                     final String trustStoreLocation,
@@ -78,7 +78,7 @@ public class X509Util {
         trustManagers = initTrustManagers();
     }
 
-    public X509Util(final String keyStoreLocation,
+    public DefaultSSLContextFactory(final String keyStoreLocation,
                     final String keyStorePassword,
                     final String trustStoreLocation,
                     final String trustStorePassword,
@@ -89,7 +89,7 @@ public class X509Util {
                 trustStoreLocation, trustStorePassword, trustStoreCAAlias);
     }
 
-    public X509Util(final String sslVersion)
+    public DefaultSSLContextFactory(final String sslVersion)
             throws NoSuchAlgorithmException, KeyManagerException,
             TrustManagerException {
         this(sslVersion, System.getProperty(KEYSTORE_LOCATION),
@@ -99,7 +99,7 @@ public class X509Util {
                 System.getProperty(TRUSTSTORE_CA_ALIAS));
     }
 
-    public X509Util() throws NoSuchAlgorithmException, KeyManagerException,
+    public DefaultSSLContextFactory() throws NoSuchAlgorithmException, KeyManagerException,
             TrustManagerException {
         this(SSL_VERSION);
     }
@@ -177,6 +177,7 @@ public class X509Util {
         return true;
     }
 
+    @Override
     public SSLContext createSSLContext()
             throws SSLContextException {
         SSLContext sslContext;
