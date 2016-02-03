@@ -18,7 +18,8 @@
 package org.apache.zookeeper.server.quorum.util;
 
 import org.apache.zookeeper.common.X509Exception;
-import org.apache.zookeeper.common.X509Util;
+import org.apache.zookeeper.common.SSLContextFactory;
+import org.apache.zookeeper.common.DefaultSSLContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,10 +40,10 @@ public class QuorumSocketFactory {
     public static final String SSL_ENABLED_PROP = "quorum.ssl.enabled";
     private static final int LISTEN_BACKLOG = 20;
 
-    private final X509Util x509Util;
+    private final SSLContextFactory sslContextFactory;
 
-    private QuorumSocketFactory(final X509Util x509Util) {
-        this.x509Util = x509Util;
+    private QuorumSocketFactory(final SSLContextFactory sslContextFactory) {
+        this.sslContextFactory = sslContextFactory;
     }
 
     public static QuorumSocketFactory createDefault()
@@ -64,7 +65,7 @@ public class QuorumSocketFactory {
 
     public static QuorumSocketFactory createForSSL() throws NoSuchAlgorithmException, X509Exception.KeyManagerException,
             X509Exception.TrustManagerException {
-        return new QuorumSocketFactory(new X509Util());
+        return new QuorumSocketFactory(new DefaultSSLContextFactory());
     }
 
     public static QuorumSocketFactory createForSSL(
@@ -73,8 +74,12 @@ public class QuorumSocketFactory {
             final String trustStoreCAAlias) throws NoSuchAlgorithmException, X509Exception.KeyManagerException,
             X509Exception.TrustManagerException {
         return new QuorumSocketFactory(
-                new X509Util(keyStoreLocation, keyStorePassword,
+                new DefaultSSLContextFactory(keyStoreLocation, keyStorePassword,
                         trustStoreLocation, trustStorePassword, trustStoreCAAlias));
+    }
+
+    public static QuorumSocketFactory createForSSL(SSLContextFactory sslContextFactory) {
+        return new QuorumSocketFactory(sslContextFactory);
     }
 
     public ServerSocket buildForServer(final int listenPort,
@@ -93,7 +98,7 @@ public class QuorumSocketFactory {
                                        final InetAddress bindAddr)
             throws X509Exception, IOException {
         ServerSocket s = null;
-        if (this.x509Util != null) {
+        if (this.sslContextFactory != null) {
             s = newSslServerSocket(listenPort, backlog, bindAddr);
         } else {
             s = newServerSocket(listenPort, backlog, bindAddr);
@@ -103,7 +108,7 @@ public class QuorumSocketFactory {
     }
 
     public Socket buildForClient() throws X509Exception, IOException {
-        if (this.x509Util != null) {
+        if (this.sslContextFactory != null) {
             return newSslSocket();
         } else {
             return newSocket();
@@ -117,7 +122,7 @@ public class QuorumSocketFactory {
     private Socket newSslSocket() throws X509Exception, IOException {
         Socket clientSocket = null;
         try {
-            clientSocket = x509Util.createSSLContext()
+            clientSocket = sslContextFactory.createSSLContext()
                     .getSocketFactory()
                     .createSocket();
         } catch (X509Exception.SSLContextException exp) {
@@ -146,12 +151,12 @@ public class QuorumSocketFactory {
         SSLServerSocket serverSocket = null;
         try {
             if (listenAddr != null) {
-                serverSocket = (SSLServerSocket)x509Util.createSSLContext()
+                serverSocket = (SSLServerSocket)sslContextFactory.createSSLContext()
                         .getServerSocketFactory()
                         .createServerSocket(port, backlog, listenAddr);
             } else {
                 // bind to any address
-                serverSocket = (SSLServerSocket)x509Util.createSSLContext()
+                serverSocket = (SSLServerSocket)sslContextFactory.createSSLContext()
                         .getServerSocketFactory()
                         .createServerSocket(port, backlog);
             }
