@@ -45,8 +45,8 @@ public class FourLetterWordMain {
      * @param port the destination port
      * @param cmd the 4letterword
      * @return server response
-     * @throws java.io.IOException
-     * @throws SSLContextException
+     * @throws java.io.IOException on error
+     * @throws SSLContextException on error
      */
     public static String send4LetterWord(String host, int port, String cmd)
             throws IOException, SSLContextException {
@@ -60,8 +60,8 @@ public class FourLetterWordMain {
      * @param cmd the 4letterword
      * @param secure whether to use SSL
      * @return server response
-     * @throws java.io.IOException
-     * @throws SSLContextException
+     * @throws java.io.IOException on error
+     * @throws SSLContextException on error
      */
     public static String send4LetterWord(String host, int port, String cmd, boolean secure)
             throws IOException, SSLContextException {
@@ -76,8 +76,8 @@ public class FourLetterWordMain {
      * @param secure whether to use SSL
      * @param timeout in milliseconds, maximum time to wait while connecting/reading data
      * @return server response
-     * @throws java.io.IOException
-     * @throws SSLContextException
+     * @throws java.io.IOException on error
+     * @throws SSLContextException on error
      */
     public static String send4LetterWord(String host, int port, String cmd, boolean secure, int timeout)
             throws IOException, SSLContextException {

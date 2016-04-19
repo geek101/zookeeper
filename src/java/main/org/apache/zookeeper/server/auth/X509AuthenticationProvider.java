@@ -85,7 +85,7 @@ public class X509AuthenticationProvider implements AuthenticationProvider {
 
         try {
             tm = X509Util.createTrustManager(
-                    trustStoreLocationProp, trustStorePasswordProp, null);
+                    trustStoreLocationProp, trustStorePasswordProp);
         } catch (TrustManagerException | X509Exception.SSLContextException e) {
             LOG.error("Failed to create trust manager", e);
             throw new IllegalAccessError("Failed to create trust manager");

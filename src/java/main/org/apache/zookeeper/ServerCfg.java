@@ -61,4 +61,12 @@ public class ServerCfg {
     public int hashCode() {
         return hostStr.hashCode();
     }
+
+    public String getHostString() {
+        return this.address.getHostString();
+    }
+
+    public int getPort() {
+        return this.address.getPort();
+    }
 }

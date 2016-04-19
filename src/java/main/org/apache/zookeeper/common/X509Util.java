@@ -75,6 +75,15 @@ public class X509Util {
     public static final String SSL_DIGEST_DEFAULT_ALGO ="SHA-256";
     public static final String SSL_DIGEST_ALGOS = "quorum.ssl.digest.algos";
 
+    /**
+     * API to create SSL context for clients. Supports both self-signed and
+     * CA signed.
+     * @param peerAddr host that client is trying to connect to
+     * @param peerCertCfg host's self-signed cert of CA signed cert.
+     * @return SSLContext with right verification based on self-signed or CA
+     * signed.
+     * @throws SSLContextException
+     */
     public static SSLContext createSSLContext(
             final InetSocketAddress peerAddr,
             final SSLCertCfg peerCertCfg)
@@ -117,10 +126,6 @@ public class X509Util {
         final String keyStorePasswordProp =
                 System.getProperty(SSL_KEYSTORE_PASSWD);
 
-        // There are legal states in some use cases for null
-        // KeyManager or TrustManager. But if a user wanna specify one,
-        // location and password are required.
-
         if (keyStoreLocationProp == null && keyStorePasswordProp == null) {
             LOG.warn("keystore not specified for client connection");
             return null;
@@ -143,6 +148,13 @@ public class X509Util {
         }
     }
 
+    /**
+     * If QuorumPeer is not provided and this is called it means we are CA
+     * mode and need both truststore location and password.
+     * @param quorumPeer
+     * @return
+     * @throws SSLContextException
+     */
     private static TrustManager[] createTrustManagers(
             final QuorumPeer quorumPeer) throws SSLContextException {
         String trustStoreLocationProp =
@@ -151,23 +163,30 @@ public class X509Util {
                 System.getProperty(SSL_TRUSTSTORE_PASSWD);
 
         if (trustStoreLocationProp == null && trustStorePasswordProp == null) {
-            LOG.warn("keystore not specified for client connection");
-            return null;
+            if (quorumPeer == null) {
+                final String errStr = "truststore not specified";
+                LOG.error(errStr);
+                throw new SSLContextException(errStr);
+            }
+
+            // Create self-signed verification using QuorumPeer.
+            return new TrustManager[] {createTrustManager(quorumPeer)};
         } else {
             if (trustStoreLocationProp == null) {
-                throw new SSLContextException("keystore location not " +
+                throw new SSLContextException("truststore location not " +
                         "specified for client connection");
             }
             if (trustStorePasswordProp == null) {
-                throw new SSLContextException("keystore password not " +
+                throw new SSLContextException("truststore password not " +
                         "specified for client connection");
             }
             try {
                 return new TrustManager[] {
                         createTrustManager(trustStoreLocationProp,
-                                trustStorePasswordProp, quorumPeer)};
+                                trustStorePasswordProp)};
             } catch (TrustManagerException e) {
-                throw new SSLContextException("Failed to create KeyManager", e);
+                throw new SSLContextException(
+                        "Failed to create TrustManager", e);
             }
         }
     }
@@ -187,7 +206,7 @@ public class X509Util {
         if (sslVersion == null) {
             sslVersion = SSL_VERSION_DEFAULT;
         }
-        SSLContext sslContext = null;
+        SSLContext sslContext;
         try {
             sslContext = SSLContext.getInstance(sslVersion);
             sslContext.init(keyManagers, trustManagers, null);
@@ -200,7 +219,6 @@ public class X509Util {
     public static X509KeyManager createKeyManager(
             final String keyStoreLocation, final String keyStorePassword)
             throws KeyManagerException {
-        FileInputStream inputStream = null;
         try {
 
             KeyStore ks = loadKeyStore(keyStoreLocation, keyStorePassword);
@@ -231,8 +249,6 @@ public class X509Util {
         try (final FileInputStream inputStream = new FileInputStream
                 (keyStoreFile)) {
             ks.load(inputStream, keyStorePasswordChars);
-        } catch (IOException exp) {
-            throw exp;
         }
         return ks;
     }
@@ -244,18 +260,21 @@ public class X509Util {
     }
 
     public static X509TrustManager createTrustManager(
-            final String trustStoreLocation, final String trustStorePassword,
-            final QuorumPeer quorumPeer)
+            final String trustStoreLocation, final String trustStorePassword)
             throws TrustManagerException, SSLContextException {
-        FileInputStream inputStream = null;
-        try {
-            String trustStoreCAAlias =
-                    System.getProperty(SSL_TRUSTSTORE_CA_ALIAS);
-            if (trustStoreCAAlias != null) {
-                char[] trustStorePasswordChars = trustStorePassword.toCharArray();
-                File trustStoreFile = new File(trustStoreLocation);
+        String trustStoreCAAlias =
+                System.getProperty(SSL_TRUSTSTORE_CA_ALIAS);
+        if (trustStoreCAAlias == null) {
+            final String errStr = "No CA Alias provided, need one to work in " +
+                    "CA mode.";
+            LOG.error(errStr);
+            throw new TrustManagerException(errStr);
+        }
+        try(final FileInputStream inputStream =
+                    new FileInputStream(new File(trustStoreLocation))) {
+                char[] trustStorePasswordChars =
+                        trustStorePassword.toCharArray();
                 KeyStore ts = KeyStore.getInstance("JKS");
-                inputStream = new FileInputStream(trustStoreFile);
                 ts.load(inputStream, trustStorePasswordChars);
                 TrustManagerFactory tmf =
                         TrustManagerFactory.getInstance("SunX509");
@@ -271,26 +290,12 @@ public class X509Util {
                 }
 
                 return createTrustManager(rootCA);
-            }
-
-            LOG.info("No root CA using standard TrustManager");
-            if (quorumPeer == null) {
-                final String errStr = "QuorumPeer is not provided, and no CA " +
-                        "is configured. Cannot perform authentication bailing!";
-                LOG.error(errStr);
-                throw new SSLContextException(errStr);
-            }
-
-            return createTrustManager(quorumPeer);
-
-        } catch (Exception e) {
-            throw new TrustManagerException(e);
-        } finally {
-            if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (IOException e) {}
-            }
+        } catch (IOException | KeyStoreException | NoSuchAlgorithmException
+                | CertificateException e) {
+            final String errStr = "Could not load truststore: "
+                    + trustStoreLocation;
+            LOG.error("{}", errStr, e);
+            throw new TrustManagerException(errStr, e);
         }
     }
 
