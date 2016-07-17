@@ -51,6 +51,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
+import static javax.xml.bind.DatatypeConverter.printHexBinary;
 import static org.apache.zookeeper.common.X509Exception.KeyManagerException;
 import static org.apache.zookeeper.common.X509Exception.SSLContextException;
 import static org.apache.zookeeper.common.X509Exception.TrustManagerException;
@@ -92,7 +93,7 @@ public class X509Util {
         TrustManager[] trustManagers;
         if (peerCertCfg.isSelfSigned()) {
             trustManagers = createTrustManagers(peerAddr,
-                    peerCertCfg.getCertFingerPrint());
+                    peerCertCfg.getCertFingerPrintStr());
         } else if (peerCertCfg.isCASigned()) {
             // Lets load the CA for truststore.
             trustManagers = createTrustManagers(null);
@@ -193,9 +194,9 @@ public class X509Util {
 
     private static TrustManager[] createTrustManagers(
             final InetSocketAddress peerAddr,
-            final MessageDigest peerCertFingerPrint) {
+            final String peerCertFingerPrintStr) {
         return new TrustManager[]{
-                    createTrustManager(peerAddr, peerCertFingerPrint)};
+                    createTrustManager(peerAddr, peerCertFingerPrintStr)};
     }
 
     private static SSLContext createSSLContext(
@@ -255,8 +256,8 @@ public class X509Util {
 
     private static X509TrustManager createTrustManager(
             final InetSocketAddress peerAddr,
-            final MessageDigest peerCertFingerPrint) {
-        return new ZKPeerX509TrustManager(peerAddr, peerCertFingerPrint);
+            final String peerCertFingerPrintStr) {
+        return new ZKPeerX509TrustManager(peerAddr, peerCertFingerPrintStr);
     }
 
     public static X509TrustManager createTrustManager(
@@ -328,7 +329,7 @@ public class X509Util {
      * @param fingerPrint
      * @return MessageDigest object, null on error.
      */
-    public static MessageDigest getSupportedMessageDigestForFp(
+    public static MessageDigest getSupportedMessageDigestForFpStr(
             final String fingerPrint) {
         final String[] algos = getConfigureDigestAlgos();
         String validAlgo = null;
@@ -349,7 +350,6 @@ public class X509Util {
         }
 
         MessageDigest md = getMessageDigestByAlgo(validAlgo);
-
         if (md == null) {
             return null;
         }
@@ -358,7 +358,8 @@ public class X509Util {
         // the supported algorithm
         final String fp = fingerPrint.trim().toUpperCase()
                 .replace(md.getAlgorithm(), "")
-                .replace("-", "");
+                .replace("-", "").toLowerCase();
+
         byte[] b = DatatypeConverter.parseHexBinary(fp);
         if (b.length != md.getDigestLength()) {
             LOG.error("Invalid digest, length mismatch for fingerprint: " +
@@ -367,8 +368,8 @@ public class X509Util {
                     md.getDigestLength());
             return null;
         }
-
-        md.update(b);
+        LOG.info("given str fp: " + fp + ", got fp: " +
+                printHexBinary(b));
         return md;
     }
 
@@ -407,26 +408,32 @@ public class X509Util {
                                        final X509Certificate cert)
             throws CertificateEncodingException, NoSuchAlgorithmException {
         final MessageDigest fpMsgDigest =
-                getSupportedMessageDigestForFp(fingerPrint);
+                getSupportedMessageDigestForFpStr(fingerPrint);
         if (fpMsgDigest == null) {
             return false;
         }
 
-        final MessageDigest certMsgDigest =
-                MessageDigest.getInstance(fpMsgDigest.getAlgorithm());
-
-        certMsgDigest.update(cert.getEncoded());
-        return certMsgDigest.equals(fpMsgDigest);
+        return validateCert(fpMsgDigest, fingerPrint, cert);
     }
 
-    public static boolean validateCert(final MessageDigest fingerPrint,
+    public static boolean validateCert(final MessageDigest messageDigest,
+                                       final String fingerPrintStr,
                                        final X509Certificate cert)
             throws CertificateEncodingException, NoSuchAlgorithmException {
+        return fingerPrintStr.toLowerCase().equals(
+                SSLCertCfg.getDigestToCertFp(
+                        getMessageDigestFromCert(cert,
+                                messageDigest.getAlgorithm())).toLowerCase());
+    }
+
+    public static MessageDigest getMessageDigestFromCert(
+            final X509Certificate cert, final String messageDigestAlgo)
+            throws NoSuchAlgorithmException, CertificateEncodingException {
         final MessageDigest certMsgDigest =
-                MessageDigest.getInstance(fingerPrint.getAlgorithm());
+                MessageDigest.getInstance(messageDigestAlgo);
 
         certMsgDigest.update(cert.getEncoded());
-        return certMsgDigest.equals(fingerPrint);
+        return certMsgDigest;
     }
 
     /**

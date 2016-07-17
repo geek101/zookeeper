@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.X509TrustManager;
 import java.net.InetSocketAddress;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -33,13 +32,13 @@ public class ZKPeerX509TrustManager implements X509TrustManager {
             = LoggerFactory.getLogger(ZKPeerX509TrustManager.class);
 
     private final InetSocketAddress peerAddr;  // TODO: Host verification?
-    private final MessageDigest peerCertFingerPrint;
+    private final String peerCertFingerPrintStr;
 
     public ZKPeerX509TrustManager(
             final InetSocketAddress peerAddr,
-            final MessageDigest peerCertFingerPrint) {
+            final String peerCertFingerPrintStr) {
         this.peerAddr = peerAddr;
-        this.peerCertFingerPrint = peerCertFingerPrint;
+        this.peerCertFingerPrintStr = peerCertFingerPrintStr;
     }
 
     public X509Certificate[] getAcceptedIssuers() {
@@ -71,7 +70,7 @@ public class ZKPeerX509TrustManager implements X509TrustManager {
         X509Util.verifySelfSigned(cert);
 
         try {
-            X509Util.validateCert(peerCertFingerPrint, cert);
+            X509Util.validateCert(peerCertFingerPrintStr, cert);
         } catch (NoSuchAlgorithmException exp) {
             throw new CertificateException(exp);
         }

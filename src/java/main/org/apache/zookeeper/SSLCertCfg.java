@@ -20,6 +20,8 @@ package org.apache.zookeeper;
 
 import org.apache.zookeeper.common.X509Util;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
 import java.util.HashMap;
@@ -28,21 +30,22 @@ import java.util.Map;
 import static javax.xml.bind.DatatypeConverter.printHexBinary;
 
 public class SSLCertCfg {
+    private static final Logger LOG = LoggerFactory.getLogger(SSLCertCfg.class);
     private final CertType certType;
-    private final MessageDigest certFingerPrint;
+    private final String certFingerPrintStr;
     public enum CertType {
         NONE, SELF, CA;
     }
 
     public SSLCertCfg() {
         certType = CertType.NONE;
-        certFingerPrint = null;
+        certFingerPrintStr = null;
     }
 
     public SSLCertCfg(final CertType certType,
-                      final MessageDigest certFingerPrint) {
+                      final String certFingerPrintStr) {
         this.certType = certType;
-        this.certFingerPrint = certFingerPrint;
+        this.certFingerPrintStr = certFingerPrintStr;
     }
 
     public boolean isSelfSigned() {
@@ -53,8 +56,8 @@ public class SSLCertCfg {
         return certType == CertType.CA;
     }
 
-    public MessageDigest getCertFingerPrint() {
-        return certFingerPrint;
+    public String getCertFingerPrintStr() {
+        return certFingerPrintStr;
     }
 
     public static SSLCertCfg parseCertCfgStr(final String certCfgStr)
@@ -84,8 +87,11 @@ public class SSLCertCfg {
 
         if (fpIndex != Integer.MAX_VALUE &&
                 parts.length > fpIndex) {
-            return new SSLCertCfg(certType,
-                    getMessageDigest(parts[fpIndex]));
+            LOG.debug("certCfgStr: " + certCfgStr + ", cert type:" + certType +
+                    ", fp:" + parts[fpIndex]);
+            if (getMessageDigest(parts[fpIndex]) != null) {
+                return new SSLCertCfg(certType, parts[fpIndex]);
+            }
         }
 
         return new SSLCertCfg();
@@ -111,7 +117,7 @@ public class SSLCertCfg {
             throws QuorumPeerConfig.ConfigException {
         // Check for supported algos for the given fingerprint if cannot
         // validate throw exception.
-        MessageDigest md = X509Util.getSupportedMessageDigestForFp(fp);
+        MessageDigest md = X509Util.getSupportedMessageDigestForFpStr(fp);
         if (md == null) {
             final String errStr = "Algo in fingerprint: " + fp +
                     " not supported, bailing out";

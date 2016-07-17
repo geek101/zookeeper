@@ -344,13 +344,11 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             else if (type == LearnerType.PARTICIPANT) sw.append(":participant");
             if (isSelfSigned()) {
                 sw.append(":cert:");
-                sw.append(SSLCertCfg.getDigestToCertFp(
-                        sslCertCfg.getCertFingerPrint()));
+                sw.append(sslCertCfg.getCertFingerPrintStr());
             } else if (isCASigned()) {
                 sw.append(":cacert:");
-                if (sslCertCfg.getCertFingerPrint() != null) {
-                    sw.append(SSLCertCfg.getDigestToCertFp(
-                            sslCertCfg.getCertFingerPrint()));
+                if (sslCertCfg.getCertFingerPrintStr() != null) {
+                    sw.append(sslCertCfg.getCertFingerPrintStr());
                 }
             }
             if (clientAddr!=null){
@@ -1563,73 +1561,85 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         return prevQV;
     }
 
-    public MessageDigest getQuorumServerFingerPrintByElectionAddress(
+    public String getQuorumServerFingerPrintByElectionAddress(
             final InetAddress serverElectionAddr) {
         synchronized(this) {
-            MessageDigest serverMsgDigest =
+            String serverFp =
                     getQuorumServerFingerPrintByElectionAddress(getView(),
                             serverElectionAddr);
 
-            if (serverMsgDigest == null &&
-                    getLastSeenQuorumVerifier() != null) {
-                serverMsgDigest =
+            if (serverFp == null && getLastSeenQuorumVerifier() != null) {
+                serverFp =
                         getQuorumServerFingerPrintByElectionAddress(
                                 getLastSeenQuorumVerifier().getAllMembers(),
                                 serverElectionAddr);
 
             }
 
-            return serverMsgDigest;
+            return serverFp;
         }
     }
 
-    public MessageDigest getQuorumServerFingerPrintByCert(
+    public String getQuorumServerFingerPrintByCert(
             final X509Certificate cert) throws CertificateEncodingException,
             NoSuchAlgorithmException {
         synchronized(this) {
-            MessageDigest serverMsgDigest =
-                    getQuorumServerFingerPrintByCert(getView(), cert);
+            String serverFp = getQuorumServerFingerPrintByCert(getView(), cert);
 
-            if (serverMsgDigest == null &&
-                    getLastSeenQuorumVerifier() != null) {
-                serverMsgDigest =
-                        getQuorumServerFingerPrintByCert(
-                                getLastSeenQuorumVerifier().getAllMembers(),
-                                cert);
+            if (serverFp == null && getLastSeenQuorumVerifier() != null) {
+                serverFp = getQuorumServerFingerPrintByCert(
+                        getLastSeenQuorumVerifier().getAllMembers(), cert);
 
             }
 
-            return serverMsgDigest;
+            return serverFp;
         }
     }
     /**
      * Iterate through the map and return the fingerprint for the matching
      * election address. Return null if could not find it.
      * @param quorumServerMap
-     * @return MessageDigest , null if could not find.
+     * @return String Fingerprint , null if could not find.
      */
-    private MessageDigest getQuorumServerFingerPrintByElectionAddress(
+    private String getQuorumServerFingerPrintByElectionAddress(
             final Map<Long,QuorumPeer.QuorumServer> quorumServerMap,
             final InetAddress serverElectionAddr) {
         for (QuorumServer quorumServer : quorumServerMap.values()) {
             if (quorumServer.electionAddr.getAddress()
                     .equals(serverElectionAddr)) {
-                return quorumServer.getSslCertCfg().getCertFingerPrint();
+                return quorumServer.getSslCertCfg().getCertFingerPrintStr();
             }
         }
 
         return null;
     }
 
-    private MessageDigest getQuorumServerFingerPrintByCert(
+    private String getQuorumServerFingerPrintByCert(
             final Map<Long,QuorumPeer.QuorumServer> quorumServerMap,
             final X509Certificate incomingPeerCert)
             throws CertificateEncodingException, NoSuchAlgorithmException {
         for (QuorumServer quorumServer : quorumServerMap.values()) {
-            final MessageDigest peerMd =
-                    quorumServer.getSslCertCfg().getCertFingerPrint();
-            if (X509Util.validateCert(peerMd, incomingPeerCert)) {
-                return peerMd;
+            final String peerFp =
+                    quorumServer.getSslCertCfg().getCertFingerPrintStr();
+            final MessageDigest peerFpSupportedMd =
+                    X509Util.getSupportedMessageDigestForFpStr(peerFp);
+            if (peerFpSupportedMd == null) {
+                final String errStr =
+                        "QuorumServer: "  + quorumServer +
+                                " un-supported finger print in dynamic cfg: " +
+                                peerFp;
+                LOG.error(errStr);
+                throw new IllegalAccessError(errStr);
+            }
+
+            LOG.info("quorumServer: " + quorumServer + " cert:" + peerFp
+                    + " , given cert:" +
+            SSLCertCfg.getDigestToCertFp(
+                    X509Util.getMessageDigestFromCert(incomingPeerCert,
+                            peerFpSupportedMd.getAlgorithm())));
+            if (X509Util.validateCert(peerFpSupportedMd, peerFp,
+                    incomingPeerCert)) {
+                return peerFp;
             }
         }
 
@@ -1723,7 +1733,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     public void setSecureCnxnFactory(ServerCnxnFactory secureCnxnFactory) {
         this.secureCnxnFactory = secureCnxnFactory;
-        secureCnxnFactory.setQuorumPeer(this);
+        if (secureCnxnFactory != null) {
+            secureCnxnFactory.setQuorumPeer(this);
+        }
     }
 
     public void setSocketFactory(QuorumSocketFactory socketFactory) {

@@ -32,7 +32,7 @@ fi
 openssl ca -config ${mdir}/openssl-ca.cnf -policy signing_policy -extensions signing_req -in ${jdir}/$1.csr -out ${jdir}/$1.pem
 
 if [ $? -ne 0 ]; then
-    echo "error siging the csr for ${1}"
+    echo "error signing the csr for ${1}"
     exit 1
 fi
 

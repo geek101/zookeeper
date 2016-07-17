@@ -30,7 +30,6 @@ import javax.net.ssl.X509ExtendedTrustManager;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -129,30 +128,30 @@ public class ZKDynamicX509TrustManager extends X509ExtendedTrustManager {
             LOG.error("{}", errStr, exp);
             throw new CertificateException(errStr, exp);
         }
-
-
     }
 
     private void validatePeerCert(final X509Certificate cert,
                                   final InetAddress peerAddr)
             throws CertificateException {
 
+        LOG.info("validating cert: " + cert);
         // Verify that server presented a self-signed cert.
         X509Util.verifySelfSigned(cert);
 
-        final MessageDigest peerCertFingerPrint =
-                quorumPeer.getQuorumServerFingerPrintByElectionAddress
-                        (peerAddr);
+        final String peerCertFingerPrint =
+                quorumPeer.getQuorumServerFingerPrintByElectionAddress(
+                        peerAddr);
 
         // If we could not get the fp then bail!.
         if (peerCertFingerPrint == null) {
-            final String errStr = "Invalid peerAddr: " + peerAddr +
-                    " could not find fingerprint for this address";
+            final String errStr = "Invalid cert and peerAddr: " +
+                    peerAddr + " could not find fingerprint for this address";
             LOG.error(errStr);
             throw new CertificateException(errStr);
         }
 
         validatePeerCert(cert, peerCertFingerPrint);
+        LOG.info("validation done");
     }
 
     private void validatePeerCert(final X509Certificate cert)
@@ -162,7 +161,8 @@ public class ZKDynamicX509TrustManager extends X509ExtendedTrustManager {
                     " is null");
         }
 
-        final MessageDigest peerCertFingerPrint =
+        LOG.info("validating cert: " + cert);
+        final String peerCertFingerPrint =
                 quorumPeer.getQuorumServerFingerPrintByCert(cert);
 
         // If we could not get the fp then bail!.
@@ -171,19 +171,8 @@ public class ZKDynamicX509TrustManager extends X509ExtendedTrustManager {
             LOG.error(errStr);
             throw new CertificateException(errStr);
         }
-    }
 
-    private void validatePeerCert(
-            final X509Certificate cert,
-            final MessageDigest knownPeerCertFingerPrint)
-            throws CertificateException {
-        try {
-            X509Util.validateCert(knownPeerCertFingerPrint, cert);
-        } catch (NoSuchAlgorithmException exp) {
-            final String errStr = "Invalid peerHost, should be a valid";
-            LOG.error("{}", errStr, exp);
-            throw new CertificateException(errStr, exp);
-        }
+        LOG.info("validation done");
     }
 }
 
