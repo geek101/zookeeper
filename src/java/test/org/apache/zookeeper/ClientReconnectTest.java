@@ -18,9 +18,9 @@
 package org.apache.zookeeper;
 
 
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.zookeeper.client.HostProvider;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -28,9 +28,9 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.zookeeper.client.HostProvider;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class ClientReconnectTest extends ZKTestCase {
     private SocketChannel sc;
@@ -58,8 +58,9 @@ public class ClientReconnectTest extends ZKTestCase {
     public void testClientReconnect() throws IOException, InterruptedException {
         HostProvider hostProvider = mock(HostProvider.class);
         when(hostProvider.size()).thenReturn(1);
-        InetSocketAddress inaddr = new InetSocketAddress("127.0.0.1", 1111);
-        when(hostProvider.next(anyLong())).thenReturn(inaddr);
+        final ServerCfg serverCfg = new ServerCfg("127.0.0.1:1111",
+                new InetSocketAddress("127.0.0.1", 1111));
+        when(hostProvider.next(anyLong())).thenReturn(serverCfg);
         ZooKeeper zk = mock(ZooKeeper.class);
         sc =  SocketChannel.open();
 
