@@ -34,12 +34,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.Date;
 
+import org.apache.zookeeper.common.X509Exception;
+import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.ZooKeeperThread;
 
 /**
@@ -159,7 +159,7 @@ public class QuorumCnxManager {
         this.self = self;
 
         // Starts listener thread that waits for connection requests 
-        listener = new Listener();
+        listener = new Listener(this.self.socketFactory);
     }
 
     /**
@@ -171,7 +171,7 @@ public class QuorumCnxManager {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Opening channel to server " + sid);
         }
-        Socket sock = new Socket();
+        Socket sock = this.self.socketFactory.buildForClient();
         setSockOpts(sock);
         sock.connect(self.getVotingView().get(sid).electionAddr, cnxTO);
         initiateConnection(sock, sid);
@@ -376,7 +376,7 @@ public class QuorumCnxManager {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Opening channel to server " + sid);
                 }
-                Socket sock = new Socket();
+                Socket sock = this.self.socketFactory.buildForClient();
                 setSockOpts(sock);
                 sock.connect(self.getView().get(sid).electionAddr, cnxTO);
                 if (LOG.isDebugEnabled()) {
@@ -396,7 +396,7 @@ public class QuorumCnxManager {
                     self.getView().get(sid).recreateSocketAddresses();
                 }
                 throw e;
-            } catch (IOException e) {
+            } catch (IOException | X509Exception e) {
                 LOG.warn("Cannot open channel to " + sid
                         + " at election address " + electionAddr,
                         e);
@@ -506,12 +506,14 @@ public class QuorumCnxManager {
      */
     public class Listener extends ZooKeeperThread {
 
+        private final QuorumSocketFactory socketFactory;
         volatile ServerSocket ss = null;
 
-        public Listener() {
+        public Listener(final QuorumSocketFactory socketFactory) {
             // During startup of thread, thread name will be overridden to
             // specific election address
             super("ListenerThread");
+            this.socketFactory = socketFactory;
         }
 
         /**
@@ -523,8 +525,7 @@ public class QuorumCnxManager {
             InetSocketAddress addr;
             while((!shutdown) && (numRetries < 3)){
                 try {
-                    ss = new ServerSocket();
-                    ss.setReuseAddress(true);
+
                     if (self.getQuorumListenOnAllIPs()) {
                         int port = self.quorumPeers.get(self.getId()).electionAddr.getPort();
                         addr = new InetSocketAddress(port);
@@ -534,7 +535,9 @@ public class QuorumCnxManager {
                     LOG.info("My election bind port: " + addr.toString());
                     setName(self.quorumPeers.get(self.getId()).electionAddr
                             .toString());
-                    ss.bind(addr);
+                    ss = socketFactory.buildForServer(
+                            addr.getPort(), addr.getAddress());
+                    ss.setReuseAddress(true);
                     while (!shutdown) {
                         Socket client = ss.accept();
                         setSockOpts(client);
@@ -543,7 +546,7 @@ public class QuorumCnxManager {
                         receiveConnection(client);
                         numRetries = 0;
                     }
-                } catch (IOException e) {
+                } catch (IOException | X509Exception e) {
                     LOG.error("Exception while listening", e);
                     numRetries++;
                     try {
