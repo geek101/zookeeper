@@ -28,7 +28,6 @@ import org.apache.jute.BinaryInputArchive;
 import org.apache.zookeeper.ClientCnxn.Packet;
 import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.common.Time;
-import org.apache.zookeeper.common.ZKConfig;
 import org.apache.zookeeper.proto.ConnectResponse;
 import org.apache.zookeeper.server.ByteBufferInputStream;
 import org.slf4j.Logger;
@@ -229,10 +228,10 @@ abstract class ClientCnxnSocket {
 
     protected void initProperties() {
         packetLen = Integer.getInteger(
-                clientConfig.getProperty(ZKConfig.JUTE_MAXBUFFER),
+                clientConfig.getProperty(ZKClientConfig.JUTE_MAXBUFFER),
                 ZKClientConfig.CLIENT_MAX_PACKET_LENGTH_DEFAULT);
         if (LOG.isDebugEnabled()) {
-            LOG.debug("{} is {}", ZKConfig.JUTE_MAXBUFFER, packetLen);
+            LOG.debug("{} is {}", ZKClientConfig.JUTE_MAXBUFFER, packetLen);
         }
     }
 
