@@ -33,28 +33,29 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Map.Entry;
+import java.util.Properties;
 
-import org.apache.zookeeper.common.StringUtils;
-import org.apache.zookeeper.common.ZKConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom.OutputStreamStatement;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom.WriterStatement;
 import org.apache.zookeeper.common.PathUtils;
+import org.apache.zookeeper.common.StringUtils;
+import org.apache.zookeeper.common.ZKConfig;
 import org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.zookeeper.server.ZookeeperServerSslConfig;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
 import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
 import org.apache.zookeeper.server.quorum.flexible.QuorumHierarchical;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
 import org.apache.zookeeper.server.util.VerifyingFileFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 
-public class QuorumPeerConfig {
+public class QuorumPeerConfig extends ZKConfig {
     private static final Logger LOG = LoggerFactory.getLogger(QuorumPeerConfig.class);
     private static final int UNSET_SERVERID = -1;
     public static final String nextDynamicConfigFileSuffix = ".dynamic.next";
@@ -105,6 +106,20 @@ public class QuorumPeerConfig {
         public ConfigException(String msg, Exception e) {
             super(msg, e);
         }
+    }
+
+    public QuorumPeerConfig() {
+        super(new QuorumSslConfig());
+    }
+
+    public QuorumPeerConfig(File configFile)
+            throws QuorumPeerConfig.ConfigException {
+        super(configFile, new QuorumSslConfig());
+    }
+
+    public QuorumPeerConfig(String configPath)
+            throws QuorumPeerConfig.ConfigException {
+        super(configPath, new QuorumSslConfig());
     }
 
     /**
@@ -366,14 +381,15 @@ public class QuorumPeerConfig {
      *             provider is not configured.
      */
     private void configureSSLAuth() throws ConfigException {
-        String sslAuthProp = "zookeeper.authProvider." + System.getProperty(ZKConfig.SSL_AUTHPROVIDER, "x509");
+        String sslAuthProp = "zookeeper.authProvider." + System.getProperty
+                (ZookeeperServerSslConfig.SSL_AUTHPROVIDER, "x509");
         if (System.getProperty(sslAuthProp) == null) {
             if ("zookeeper.authProvider.x509".equals(sslAuthProp)) {
                 System.setProperty("zookeeper.authProvider.x509",
                         "org.apache.zookeeper.server.auth.X509AuthenticationProvider");
             } else {
                 throw new ConfigException("No auth provider configured for the SSL authentication scheme '"
-                        + System.getProperty(ZKConfig.SSL_AUTHPROVIDER) + "'.");
+                        + System.getProperty(ZookeeperServerSslConfig.SSL_AUTHPROVIDER) + "'.");
             }
         }
     }
