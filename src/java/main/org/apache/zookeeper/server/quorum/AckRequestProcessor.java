@@ -18,6 +18,10 @@
 
 package org.apache.zookeeper.server.quorum;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +47,14 @@ class AckRequestProcessor implements RequestProcessor {
     public void processRequest(Request request) {
         QuorumPeer self = leader.self;
         if(self != null)
-            leader.processAck(self.getId(), request.zxid, null);
+            try {
+                leader.processAck(self.getId(), request.zxid, null);
+            } catch (InterruptedException | ExecutionException |
+                    ChannelException | ElectionException | IOException exp) {
+                final String errStr = "Unexpected exception";
+                LOG.error("{}", errStr, exp);
+                throw new RuntimeException(errStr, exp);
+            }
         else
             LOG.error("Null QuorumPeer");
     }

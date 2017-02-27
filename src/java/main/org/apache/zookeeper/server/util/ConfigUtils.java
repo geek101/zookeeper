@@ -20,11 +20,11 @@ package org.apache.zookeeper.server.util;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.Properties;
 import java.util.Map.Entry;
+import java.util.Properties;
 
-import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 
 
 public class ConfigUtils {
@@ -44,9 +44,9 @@ public class ConfigUtils {
              String value = entry.getValue().toString().trim();
              if (key.equals("version")) version = value;
              if (!key.startsWith("server.")) continue;           
-             QuorumPeer.QuorumServer qs;
+             QuorumServer qs;
              try {
-               qs = new QuorumPeer.QuorumServer(-1, value);
+               qs = new QuorumServer(-1, value);
              } catch (ConfigException e) {              
                     e.printStackTrace();
                     continue;

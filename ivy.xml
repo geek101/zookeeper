@@ -54,6 +54,11 @@
       <artifact name="netty" type="jar" conf="default"/>
     </dependency>
 
+    <dependency org="io.netty" name="netty-all" conf="default"
+                rev="4.1.8.Final"/>
+    <dependency org="org.apache.commons" name="commons-lang3" conf="default"
+                rev="3.5"/>
+
     <dependency org="commons-validator" name="commons-validator" rev="1.5.1"/>
 
     <dependency org="junit" name="junit" rev="4.12" conf="test->default"/>

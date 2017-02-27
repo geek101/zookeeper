@@ -27,25 +27,21 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
-
 import java.util.concurrent.TimeUnit;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.zookeeper.common.Time;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.zookeeper.jmx.MBeanRegistry;
 import org.apache.zookeeper.server.ZooKeeperThread;
-import org.apache.zookeeper.server.quorum.Election;
-import org.apache.zookeeper.server.quorum.Vote;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @deprecated This class has been deprecated as of release 3.4.0. 
@@ -898,7 +894,8 @@ public class AuthFastLeaderElection implements Election {
                             sendNotifications();
                         }
     
-                        recvset.put(n.addr, new Vote(n.leader, n.zxid));
+                        recvset.put(n.addr, new Vote(n.leader, n.zxid,
+                                this.self.getId()));
     
                         // If have received from all nodes, then terminate
                         if (self.getVotingView().size() == recvset.size()) {
@@ -908,7 +905,8 @@ public class AuthFastLeaderElection implements Election {
                             // Thread.sleep(100);
                             // }
                             leaveInstance();
-                            return new Vote(proposedLeader, proposedZxid);
+                            return new Vote(proposedLeader, proposedZxid,
+                                    this.self.getId());
     
                         } else if (termPredicate(recvset, proposedLeader,
                                 proposedZxid)) {
@@ -934,12 +932,14 @@ public class AuthFastLeaderElection implements Election {
                                          ServerState.FOLLOWING);
     
                                 leaveInstance();
-                                return new Vote(proposedLeader, proposedZxid);
+                                return new Vote(proposedLeader, proposedZxid,
+                                        this.self.getId());
                             }
                         }
                         break;
                     case LEADING:
-                        outofelection.put(n.addr, new Vote(n.leader, n.zxid));
+                        outofelection.put(n.addr, new Vote(n.leader, n.zxid,
+                                this.self.getId()));
     
                         if (termPredicate(outofelection, n.leader, n.zxid)) {
     
@@ -947,11 +947,12 @@ public class AuthFastLeaderElection implements Election {
                                     ServerState.LEADING: ServerState.FOLLOWING);
     
                             leaveInstance();
-                            return new Vote(n.leader, n.zxid);
+                            return new Vote(n.leader, n.zxid, this.self.getId());
                         }
                         break;
                     case FOLLOWING:
-                        outofelection.put(n.addr, new Vote(n.leader, n.zxid));
+                        outofelection.put(n.addr, new Vote(n.leader, n.zxid,
+                                this.self.getId()));
     
                         if (termPredicate(outofelection, n.leader, n.zxid)) {
     
@@ -959,7 +960,7 @@ public class AuthFastLeaderElection implements Election {
                                     ServerState.LEADING: ServerState.FOLLOWING);
     
                             leaveInstance();
-                            return new Vote(n.leader, n.zxid);
+                            return new Vote(n.leader, n.zxid, this.self.getId());
                         }
                         break;
                     default:
@@ -979,5 +980,11 @@ public class AuthFastLeaderElection implements Election {
             }
             self.jmxLeaderElectionBean = null;
         }
+    }
+
+    @Override
+    public Vote lookForLeader(long peerEpoch, long zxid)
+            throws ElectionException, InterruptedException, ExecutionException {
+        throw new IllegalAccessError("Not implemented.");
     }
 }

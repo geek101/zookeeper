@@ -35,7 +35,7 @@ import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.jmx.CommonNames;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.apache.zookeeper.server.quorum.flexible.QuorumHierarchical;

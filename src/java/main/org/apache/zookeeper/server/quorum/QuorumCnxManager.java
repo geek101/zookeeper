@@ -488,9 +488,9 @@ public class QuorumCnxManager {
             // Resolve hostname for the remote server before attempting to
             // connect in case the underlying ip address has changed.
             self.recreateSocketAddresses(sid);
-            Map<Long, QuorumPeer.QuorumServer> lastCommittedView = self.getView();
+            Map<Long, QuorumServer> lastCommittedView = self.getView();
             QuorumVerifier lastSeenQV = self.getLastSeenQuorumVerifier();
-            Map<Long, QuorumPeer.QuorumServer> lastProposedView = lastSeenQV.getAllMembers();
+            Map<Long, QuorumServer> lastProposedView = lastSeenQV.getAllMembers();
             if (lastCommittedView.containsKey(sid)) {
                 knownId = true;
                 if (connectOne(sid, lastCommittedView.get(sid).electionAddr,

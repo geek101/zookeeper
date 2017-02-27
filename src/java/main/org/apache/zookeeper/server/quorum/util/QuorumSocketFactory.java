@@ -28,7 +28,7 @@ import javax.net.ssl.SSLServerSocket;
 
 import org.apache.zookeeper.SSLCertCfg;
 import org.apache.zookeeper.common.X509Exception;
-import org.apache.zookeeper.server.quorum.QuorumPeer;
+import org.apache.zookeeper.server.quorum.QuorumPeerDynamicCertCheck;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +40,7 @@ public class QuorumSocketFactory {
     private static final Logger LOG =
             LoggerFactory.getLogger(QuorumSocketFactory.class.getName());
     public static final String SSL_ENABLED_PROP = "quorum.ssl.enabled";
-    private static final int LISTEN_BACKLOG = 20;
+    public static final int LISTEN_BACKLOG = 20;
     private final boolean sslEnabled;
 
     private QuorumSocketFactory(boolean sslEnabled) {
@@ -70,23 +70,22 @@ public class QuorumSocketFactory {
         return new QuorumSocketFactory(true);
     }
 
-    public ServerSocket buildForServer(final QuorumPeer quorumPeer,
-                                       final int listenPort,
-                                       final InetAddress bindAddr)
+    public ServerSocket buildForServer(
+            final QuorumPeerDynamicCertCheck quorumPeer,
+            final int listenPort, final InetAddress bindAddr)
             throws X509Exception, IOException {
         return buildForServer(quorumPeer, listenPort, LISTEN_BACKLOG, bindAddr);
     }
 
-    public ServerSocket buildForServer(final QuorumPeer quorumPeer,
-                                       final int port)
+    public ServerSocket buildForServer(
+            final QuorumPeerDynamicCertCheck quorumPeer, final int port)
             throws X509Exception, IOException {
         return buildForServer(quorumPeer, port, LISTEN_BACKLOG, null);
     }
 
-    public ServerSocket buildForServer(final QuorumPeer quorumPeer,
-                                       final int listenPort,
-                                       final int backlog,
-                                       final InetAddress bindAddr)
+    public ServerSocket buildForServer(
+            final QuorumPeerDynamicCertCheck quorumPeer, final int listenPort,
+            final int backlog, final InetAddress bindAddr)
             throws X509Exception, IOException {
         ServerSocket s = null;
         if (this.sslEnabled) {
@@ -143,7 +142,7 @@ public class QuorumSocketFactory {
     }
 
     private ServerSocket newSslServerSocket(
-            final QuorumPeer quorumPeer, final int port,
+            final QuorumPeerDynamicCertCheck quorumPeer, final int port,
             final int backlog, final InetAddress listenAddr)
             throws X509Exception {
         SSLServerSocket serverSocket = null;
@@ -171,5 +170,4 @@ public class QuorumSocketFactory {
         serverSocket.setNeedClientAuth(true);
         return serverSocket;
     }
-
 }

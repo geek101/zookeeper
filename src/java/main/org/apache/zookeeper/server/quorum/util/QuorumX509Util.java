@@ -26,8 +26,8 @@ import org.apache.zookeeper.common.X509ChainedTrustManager;
 import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.common.X509Util;
 import org.apache.zookeeper.common.ZKConfig;
-import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.apache.zookeeper.server.quorum.QuorumPeerDynamicCertCheck;
 
 /**
  * Helps with KeyManager and TrustManager creation and handling
@@ -38,24 +38,26 @@ public class QuorumX509Util extends X509Util {
      * SSL context which depend on dynamic config for authentication. Hence
      * we need quorumPeer along with regular verification via Truststore done
      * first.
-     * @param quorumPeer Used for getting QuorumVerifier and certs from
-     *                   QuorumPeerConfig. Both committed and last verified.
+     * @param quorumPeerDynamicCertCheck Used for getting QuorumVerifier and
+     *                                   certs from QuorumPeerConfig. Both
+     *                                   committed and last verified.
      * @return SSLContext which can perform authentication based on dynamic cfg.
      * @throws X509Exception.SSLContextException
      */
-    public static SSLContext createSSLContext(final QuorumPeer quorumPeer)
+    public static SSLContext createSSLContext(
+            final QuorumPeerDynamicCertCheck quorumPeerDynamicCertCheck)
             throws X509Exception.SSLContextException {
-        final ZKConfig zkConfig = new QuorumPeerConfig();
-        try {
-            return createSSLContext(zkConfig, new X509ChainedTrustManager(
-                    new ZKX509TrustManager(zkConfig.getProperty(
-                            ZKConfig.SSL_TRUSTSTORE_LOCATION),
-                            zkConfig.getProperty(
-                                    ZKConfig.SSL_TRUSTSTORE_PASSWD)),
-                    new ZKDynamicX509TrustManager(quorumPeer)));
-        } catch (X509Exception.TrustManagerException exp) {
-            throw new X509Exception.SSLContextException(exp);
-        }
+        return createSSLContext(quorumPeerDynamicCertCheck,
+                new QuorumPeerConfig());
+    }
+
+    public static SSLContext createSSLContext(
+            final QuorumPeerConfig quorumPeerConfig,
+            final InetSocketAddress peerAddr,
+            final String peerCertFingerPrintStr)
+            throws X509Exception.SSLContextException {
+        return ClientX509Util.createSSLContext(quorumPeerConfig,
+                peerAddr, peerCertFingerPrintStr);
     }
 
     public static SSLContext createSSLContext(
@@ -64,5 +66,27 @@ public class QuorumX509Util extends X509Util {
             throws X509Exception.SSLContextException {
         return ClientX509Util.createSSLContext(new QuorumPeerConfig(),
                 peerAddr, peerCertFingerPrintStr);
+    }
+
+    /**
+     * Used mostly for UT.
+     * @param quorumPeerDynamicCertCheck Interface to verify certs dynamically.
+     * @param zkConfig config for this ZK.
+     * @return
+     * @throws X509Exception.SSLContextException
+     */
+    public static SSLContext createSSLContext(
+            final QuorumPeerDynamicCertCheck quorumPeerDynamicCertCheck,
+            final ZKConfig zkConfig) throws X509Exception.SSLContextException {
+        try {
+            return createSSLContext(zkConfig, new X509ChainedTrustManager(
+                    new ZKX509TrustManager(zkConfig.getProperty(
+                            ZKConfig.SSL_TRUSTSTORE_LOCATION),
+                            zkConfig.getProperty(
+                                    ZKConfig.SSL_TRUSTSTORE_PASSWD)),
+                    new ZKDynamicX509TrustManager(quorumPeerDynamicCertCheck)));
+        } catch (X509Exception.TrustManagerException exp) {
+            throw new X509Exception.SSLContextException(exp);
+        }
     }
 }

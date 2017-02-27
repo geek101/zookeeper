@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.jute.BinaryOutputArchive;
@@ -47,6 +48,7 @@ import org.apache.zookeeper.server.RequestProcessor;
 import org.apache.zookeeper.server.ZooKeeperCriticalThread;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
+import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -406,7 +408,7 @@ public class Leader {
      * @throws IOException
      * @throws InterruptedException
      */
-    void lead() throws IOException, InterruptedException {
+    void lead() throws IOException, InterruptedException, ExecutionException, ChannelException, ElectionException {
         self.end_fle = Time.currentElapsedTime();
         long electionTimeTaken = self.end_fle - self.start_fle;
         self.setElectionTimeTaken(electionTimeTaken);
@@ -713,7 +715,7 @@ public class Leader {
      * @return True if committed, otherwise false.
      * @param a proposal p
      **/
-    synchronized public boolean tryToCommit(Proposal p, long zxid, SocketAddress followerAddr) {       
+    synchronized public boolean tryToCommit(Proposal p, long zxid, SocketAddress followerAddr) throws InterruptedException, ElectionException, IOException, ExecutionException, ChannelException {
        // make sure that ops are committed in order. With reconfigurations it is now possible
        // that different operations wait for different sets of acks, and we still want to enforce
        // that they are committed in order. Currently we only permit one outstanding reconfiguration
@@ -792,7 +794,7 @@ public class Leader {
      * @param sid, the id of the server that sent the ack
      * @param followerAddr
      */
-    synchronized public void processAck(long sid, long zxid, SocketAddress followerAddr) {        
+    synchronized public void processAck(long sid, long zxid, SocketAddress followerAddr) throws InterruptedException, ElectionException, ChannelException, ExecutionException, IOException {
         if (!allowedToCommit) return; // last op committed was a leader change - from now on 
                                      // the new leader should commit        
         if (LOG.isTraceEnabled()) {
@@ -1253,7 +1255,7 @@ public class Leader {
     /**
      * Start up Leader ZooKeeper server and initialize zxid to the new epoch
      */
-    private synchronized void startZkServer() {
+    private synchronized void startZkServer() throws InterruptedException, ElectionException, IOException, ExecutionException, ChannelException {
         // Update lastCommitted and Db's zxid to a value representing the new epoch
         lastCommitted = zk.getZxid();
         LOG.info("Have quorum of supporters, sids: [ "

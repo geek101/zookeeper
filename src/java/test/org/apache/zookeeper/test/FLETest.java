@@ -34,7 +34,7 @@ import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.server.quorum.FastLeaderElection;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.Vote;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
 import org.junit.After;
 import org.junit.Assert;
@@ -505,7 +505,7 @@ public class FLETest extends ZKTestCase {
         long electionEpoch = peer.getCurrentVote().getElectionEpoch();
         ServerState state = peer.getCurrentVote().getState();
         long peerEpoch = peer.getCurrentVote().getPeerEpoch();
-        Vote newVote = new Vote(leaderSid, zxid+100, electionEpoch+100, peerEpoch, state);
+        Vote newVote = new Vote(leaderSid, zxid+100, electionEpoch+100, peerEpoch, sid, state);
         peer.setCurrentVote(newVote);
         // Start 3rd peer and check if it joins the quorum
         peer = new QuorumPeer(peers, tmpdir[2], tmpdir[2],

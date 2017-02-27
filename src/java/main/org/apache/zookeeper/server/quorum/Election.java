@@ -19,9 +19,12 @@
 package org.apache.zookeeper.server.quorum;
 
 
-import org.apache.zookeeper.server.quorum.Vote;
+import java.util.concurrent.ExecutionException;
 
 public interface Election {
     public Vote lookForLeader() throws InterruptedException;
+    Vote lookForLeader(final long peerEpoch,
+                       final long zxid) throws ElectionException,
+            InterruptedException, ExecutionException;
     public void shutdown();
 }

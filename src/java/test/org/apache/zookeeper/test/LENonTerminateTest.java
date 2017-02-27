@@ -39,7 +39,7 @@ import org.apache.zookeeper.server.quorum.FLELostMessageTest;
 import org.apache.zookeeper.server.quorum.LeaderElection;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
 import org.apache.zookeeper.server.quorum.Vote;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
@@ -69,7 +69,7 @@ public class LENonTerminateTest extends ZKTestCase {
          */
         public Vote lookForLeader() throws InterruptedException {
             self.setCurrentVote(new Vote(self.getId(),
-                    self.getLastLoggedZxid()));
+                    self.getLastLoggedZxid(), self.getId()));
             // We are going to look for a leader by casting a vote for ourself
             byte requestBytes[] = new byte[4];
             ByteBuffer requestBuffer = ByteBuffer.wrap(requestBytes);
@@ -133,7 +133,7 @@ public class LENonTerminateTest extends ZKTestCase {
                         heardFrom.add(peerId);
                         //if(server.id != peerId){
                         Vote vote = new Vote(responseBuffer.getLong(),
-                                responseBuffer.getLong());
+                                responseBuffer.getLong(), server.id);
                         InetSocketAddress addr =
                             (InetSocketAddress) responsePacket
                             .getSocketAddress();
@@ -166,7 +166,7 @@ public class LENonTerminateTest extends ZKTestCase {
                 // for a dead peer
                 if (result.numValidVotes == 0) {
                     self.setCurrentVote(new Vote(self.getId(),
-                            self.getLastLoggedZxid()));
+                            self.getLastLoggedZxid(), self.getId()));
                 } else {
                     if (result.winner.getId() >= 0) {
                         self.setCurrentVote(result.vote);
@@ -361,7 +361,7 @@ public class LENonTerminateTest extends ZKTestCase {
         DatagramSocket udpSocket = new DatagramSocket(server.addr.getPort());
         LOG.info("In MockServer");
         mockLatch.countDown();
-        Vote current = new Vote(2, 1);
+        Vote current = new Vote(2, 1, 2);
         for (int i=0;i<2;++i) {
             udpSocket.receive(packet);
             responseBuffer.rewind();

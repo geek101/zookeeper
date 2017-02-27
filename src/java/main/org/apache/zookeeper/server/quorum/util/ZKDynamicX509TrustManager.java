@@ -30,7 +30,7 @@ import javax.net.ssl.X509ExtendedTrustManager;
 
 import org.apache.commons.validator.routines.InetAddressValidator;
 import org.apache.zookeeper.common.X509Util;
-import org.apache.zookeeper.server.quorum.QuorumPeer;
+import org.apache.zookeeper.server.quorum.QuorumPeerDynamicCertCheck;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,10 +38,11 @@ public class ZKDynamicX509TrustManager extends X509ExtendedTrustManager {
     private static final Logger LOG
             = LoggerFactory.getLogger(ZKPeerX509TrustManager.class);
 
-    private final QuorumPeer quorumPeer;
+    private final QuorumPeerDynamicCertCheck quorumPeerDynamicCertCheck;
 
-    public ZKDynamicX509TrustManager(final QuorumPeer quorumPeer) {
-        this.quorumPeer = quorumPeer;
+    public ZKDynamicX509TrustManager(
+            final QuorumPeerDynamicCertCheck quorumPeerDynamicCertCheck) {
+        this.quorumPeerDynamicCertCheck = quorumPeerDynamicCertCheck;
     }
 
     @Override
@@ -139,8 +140,8 @@ public class ZKDynamicX509TrustManager extends X509ExtendedTrustManager {
         X509Util.verifySelfSigned(cert);
 
         final String peerCertFingerPrint =
-                quorumPeer.getQuorumServerFingerPrintByElectionAddress(
-                        peerAddr);
+                quorumPeerDynamicCertCheck
+                        .getQuorumServerFingerPrintByElectionAddress(peerAddr);
 
         // If we could not get the fp then bail!.
         if (peerCertFingerPrint == null) {
@@ -156,14 +157,14 @@ public class ZKDynamicX509TrustManager extends X509ExtendedTrustManager {
 
     private void validatePeerCert(final X509Certificate cert)
             throws CertificateException, NoSuchAlgorithmException {
-        if (quorumPeer == null) {
+        if (quorumPeerDynamicCertCheck == null) {
             throw new IllegalAccessError("Cannot be used this way, quorumPeer" +
                     " is null");
         }
 
         LOG.info("validating cert: " + cert);
         final String peerCertFingerPrint =
-                quorumPeer.getQuorumServerFingerPrintByCert(cert);
+                quorumPeerDynamicCertCheck.getQuorumServerFingerPrintByCert(cert);
 
         // If we could not get the fp then bail!.
         if (peerCertFingerPrint == null) {

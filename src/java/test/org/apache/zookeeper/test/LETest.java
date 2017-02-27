@@ -31,7 +31,7 @@ import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.server.quorum.LeaderElection;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.Vote;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -80,7 +80,7 @@ public class LETest extends ZKTestCase {
                         }
                     }
                     Thread.sleep(rand.nextInt(1000));
-                    peer.setCurrentVote(new Vote(peer.getId(), 0));
+                    peer.setCurrentVote(new Vote(peer.getId(), 0, peer.getId()));
                 }
                 LOG.info("Thread " + i + " votes " + v);
             } catch (InterruptedException e) {

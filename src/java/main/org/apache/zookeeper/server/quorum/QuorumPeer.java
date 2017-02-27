@@ -23,21 +23,18 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,15 +43,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.zookeeper.KeeperException.BadArgumentsException;
 import org.apache.zookeeper.SSLCertCfg;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom.WriterStatement;
 import org.apache.zookeeper.common.Time;
 import org.apache.zookeeper.common.X509Util;
-import org.apache.zookeeper.common.ZKConfig;
 import org.apache.zookeeper.jmx.MBeanRegistry;
 import org.apache.zookeeper.jmx.ZKMBeanInfo;
 import org.apache.zookeeper.server.ServerCnxnFactory;
@@ -68,6 +64,7 @@ import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
+import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.slf4j.Logger;
@@ -100,7 +97,8 @@ import org.slf4j.LoggerFactory;
  *
  * The request for the current leader will consist solely of an xid: int xid;
  */
-public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider {
+public class QuorumPeer extends ZooKeeperThread implements
+        QuorumStats.Provider, QuorumPeerDynamicCertCheck {
     private static final Logger LOG = LoggerFactory.getLogger(QuorumPeer.class);
 
     private QuorumBean jmxQuorumBean;
@@ -117,362 +115,6 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
      * message from the leader
      */
     private ZKDatabase zkDb;
-
-
-
-    public static class QuorumServer {
-        public InetSocketAddress addr = null;
-
-        public InetSocketAddress electionAddr = null;
-        
-        public InetSocketAddress clientAddr = null;
-        public InetSocketAddress secureClientAddr = null;
-        
-        public long id;
-
-        public LearnerType type = LearnerType.PARTICIPANT;
-
-        private SSLCertCfg sslCertCfg;
-        
-        private List<InetSocketAddress> myAddrs;
-
-        public QuorumServer(long id, InetSocketAddress addr,
-                InetSocketAddress electionAddr, InetSocketAddress clientAddr) {
-            this(id, addr, electionAddr, clientAddr, LearnerType.PARTICIPANT);
-        }
-
-        public QuorumServer(long id, InetSocketAddress addr,
-                InetSocketAddress electionAddr) {
-            this(id, addr, electionAddr, (InetSocketAddress)null, LearnerType.PARTICIPANT);
-        }
-
-        public QuorumServer(long id, InetSocketAddress addr) {
-            this(id, addr, (InetSocketAddress)null, (InetSocketAddress)null, LearnerType.PARTICIPANT);
-        }
-
-        /**
-         * Performs a DNS lookup for server address and election address.
-         *
-         * If the DNS lookup fails, this.addr and electionAddr remain
-         * unmodified.
-         */
-        public void recreateSocketAddresses() {
-            if (this.addr == null) {
-                LOG.warn("Server address has not been initialized");
-                return;
-            }
-            if (this.electionAddr == null) {
-                LOG.warn("Election address has not been initialized");
-                return;
-            }
-            String host = this.addr.getHostString();
-            InetAddress address = null;
-            try {
-                address = InetAddress.getByName(host);
-            } catch (UnknownHostException ex) {
-                LOG.warn("Failed to resolve address: {}", host, ex);
-                return;
-            }
-            LOG.debug("Resolved address for {}: {}", host, address);
-            int port = this.addr.getPort();
-            this.addr = new InetSocketAddress(address, port);
-            port = this.electionAddr.getPort();
-            this.electionAddr = new InetSocketAddress(address, port);
-        }
-
-        private void setType(final HashMap<String, Integer> propKvMap)
-            throws ConfigException {
-            if (propKvMap.containsKey("participant") &&
-                    propKvMap.containsKey("observer")) {
-                throw new ConfigException("Contains both participant and " +
-                        "observer type");
-            } else if (propKvMap.containsKey("participant")) {
-                type = LearnerType.PARTICIPANT;
-            } else if (propKvMap.containsKey("observer")) {
-                type = LearnerType.OBSERVER;
-            }
-        }
-
-        private void setType(String s) throws ConfigException {
-            if (s.toLowerCase().equals("observer")) {
-               type = LearnerType.OBSERVER;
-           } else if (s.toLowerCase().equals("participant")) {
-               type = LearnerType.PARTICIPANT;
-            } else {
-               throw new ConfigException("Unrecognised peertype: " + s);
-            }
-        }
-
-        public SSLCertCfg getSslCertCfg() {
-            return sslCertCfg;
-        }
-
-        private static String[] splitWithLeadingHostname(String s)
-                throws ConfigException
-        {
-            /* Does it start with an IPv6 literal? */
-            if (s.startsWith("[")) {
-                int i = s.indexOf("]:");
-                if (i < 0) {
-                    throw new ConfigException(s + " starts with '[' but has no matching ']:'");
-                }
-
-                String[] sa = s.substring(i + 2).split(":");
-                String[] nsa = new String[sa.length + 1];
-                nsa[0] = s.substring(1, i);
-                System.arraycopy(sa, 0, nsa, 1, sa.length);
-
-                return nsa;
-            } else {
-                return s.split(":");
-            }
-        }
-
-        private static final String wrongFormat = " does not have the form server_config or server_config;client_config"+
-        " where server_config is host:port:port or host:port:port:type and " +
-                "client_config is port or host:port or plain:host:port;secure:host:port";
-
-        public QuorumServer(long sid, String addressStr) throws ConfigException {
-            // LOG.warn("sid = " + sid + " addressStr = " + addressStr);
-            this.id = sid;
-            String serverClientParts[] = addressStr.split(";");
-            String serverParts[] = splitWithLeadingHostname(serverClientParts[0]);
-            if ((serverClientParts.length > 3) || (serverParts.length < 3)
-                    || (serverParts.length > 6)) {
-                throw new ConfigException(addressStr + wrongFormat);
-            }
-
-            // Compatible part is host:port or just port which is used for non
-            // secure socket
-            // Support for both sockets or either of them is as follows
-            // plain:host:port;secure:host:port and similar config for ipv6
-            if (serverClientParts.length > 1) {
-                parseHostString(serverClientParts[1], addressStr);
-                if (serverClientParts.length > 2) {
-                    parseHostString(serverClientParts[2], addressStr);
-                }
-            }
-
-            if (serverClientParts.length > 3) {
-                throw new ConfigException("Invalid server string, more than " +
-                        "two sections parsed after ; for given string: " +
-                        addressStr);
-            }
-
-            // server_config should be either host:port:port or host:port:port:type
-            try {
-                addr = new InetSocketAddress(serverParts[0],
-                        Integer.parseInt(serverParts[1]));
-            } catch (NumberFormatException e) {
-                throw new ConfigException("Address unresolved: " + serverParts[0] + ":" + serverParts[1]);
-            }
-            try {
-                electionAddr = new InetSocketAddress(serverParts[0], 
-                        Integer.parseInt(serverParts[2]));
-            } catch (NumberFormatException e) {
-                throw new ConfigException("Address unresolved: " + serverParts[0] + ":" + serverParts[2]);
-            }
-
-            // Now we can expect the following
-            // participant:cert:<sha256 cert fp>
-            this.sslCertCfg = new SSLCertCfg();
-            if (serverParts.length == 4) {
-                // backward compatibility first.
-                setType(serverParts[3]);
-            } else if (serverParts.length >= 4) {
-                // Parse this: cert:SHA-256-XXXX
-                final HashMap<String, Integer> propKvMap = new HashMap<>();
-                for (int i = 3; i < serverParts.length; i++) {
-                    propKvMap.put(serverParts[i].trim().toLowerCase(), i);
-                }
-
-                setType(propKvMap);
-                this.sslCertCfg =
-                        SSLCertCfg.parseCertCfgStr(serverClientParts[0]);
-            }
-
-            setMyAddrs();
-        }
-
-        public QuorumServer(long id, InetSocketAddress addr,
-                    InetSocketAddress electionAddr, LearnerType type) {
-            this(id, addr, electionAddr, (InetSocketAddress)null, type);
-        }
-
-        public QuorumServer(long id, InetSocketAddress addr,
-                InetSocketAddress electionAddr, InetSocketAddress clientAddr, LearnerType type) {
-            this.id = id;
-            this.addr = addr;
-            this.electionAddr = electionAddr;
-            this.type = type;
-            this.clientAddr = clientAddr;
-
-            setMyAddrs();
-        }
-
-        private void setMyAddrs() {
-            this.myAddrs = new ArrayList<InetSocketAddress>();
-            this.myAddrs.add(this.addr);
-            this.myAddrs.add(this.clientAddr);
-            this.myAddrs.add(this.electionAddr);
-            this.myAddrs = excludedSpecialAddresses(this.myAddrs);
-        }
-
-        private static InetSocketAddress parseCompatibleHostString(
-                final String hostStr, final String serverStr)
-                throws ConfigException  {
-            //LOG.warn("ClientParts: " + serverClientParts[1]);
-            final String clientParts[] = splitWithLeadingHostname(hostStr);
-            if (clientParts.length > 2) {
-                throw new ConfigException(serverStr + wrongFormat);
-            }
-
-            // is client_config a host:port or just a port
-            final String hostname = (clientParts.length == 2) ?
-                    clientParts[0] : "0.0.0.0";
-            try {
-                return new InetSocketAddress(hostname,
-                        Integer.parseInt(clientParts[clientParts.length - 1]));
-                //LOG.warn("Set clientAddr to " + clientAddr);
-            } catch (NumberFormatException e) {
-                throw new ConfigException("Address unresolved: " + hostname +
-                        ":" + clientParts[clientParts.length - 1]);
-            }
-        }
-
-        private void parseHostString(final String hostStr,
-                                     final String serverStr)
-                throws ConfigException {
-            final String[] parts = hostStr.split(":");
-            if (parts[0].toLowerCase().equals("plain")) {
-                clientAddr = parseCompatibleHostString(
-                        removeLeadingItem(parts), serverStr);
-            } else if (parts[0].toLowerCase().equals("secure")) {
-                secureClientAddr = parseCompatibleHostString(
-                        removeLeadingItem(parts), serverStr);
-            } else {
-                clientAddr  = parseCompatibleHostString(hostStr, serverStr);
-            }
-        }
-
-        private String removeLeadingItem(final String[] parts) {
-            final List<String> partsList =
-                    new ArrayList<>(Arrays.asList(parts));
-            partsList.remove(0);
-            return String.join(":", partsList);
-        }
-
-        private static String delimitedHostString(InetSocketAddress addr)
-        {
-            String host = addr.getHostString();
-            if (host.contains(":")) {
-                return "[" + host + "]";
-            } else {
-                return host;
-            }
-        }
-
-        public String toString(){
-            StringWriter sw = new StringWriter();
-            //addr should never be null, but just to make sure
-            if (addr !=null) {
-                sw.append(delimitedHostString(addr));
-                sw.append(":");
-                sw.append(String.valueOf(addr.getPort()));
-            }
-            if (electionAddr!=null){
-                sw.append(":");
-                sw.append(String.valueOf(electionAddr.getPort()));
-            }           
-            if (type == LearnerType.OBSERVER) sw.append(":observer");
-            else if (type == LearnerType.PARTICIPANT) sw.append(":participant");
-            if (hasCertFp()) {
-                sw.append(":cert:");
-                sw.append(sslCertCfg.getCertFingerPrintStr());
-            }
-            if (clientAddr!=null){
-                sw.append(";");
-                if (secureClientAddr != null) {
-                    sw.append("plain:");
-                }
-                sw.append(delimitedHostString(clientAddr));
-                sw.append(":");
-                sw.append(String.valueOf(clientAddr.getPort()));
-            }
-            if (secureClientAddr != null) {
-                sw.append(";secure:");
-                sw.append(delimitedHostString(secureClientAddr));
-                sw.append(":");
-                sw.append(String.valueOf(secureClientAddr.getPort()));
-            }
-            return sw.toString();       
-        }
-
-        public boolean hasCertFp() {
-            return sslCertCfg != null && sslCertCfg.getCertFingerPrintStr()
-                    != null;
-        }
-
-        public int hashCode() {
-          assert false : "hashCode not designed";
-          return 42; // any arbitrary constant will do 
-        }
-        
-        private boolean checkAddressesEqual(InetSocketAddress addr1, InetSocketAddress addr2){
-            if ((addr1 == null && addr2!=null) ||
-                (addr1!=null && addr2==null) ||
-                (addr1!=null && addr2!=null && !addr1.equals(addr2))) return false;
-            return true;
-        }
-        
-        public boolean equals(Object o){
-            if (!(o instanceof QuorumServer)) return false;
-            QuorumServer qs = (QuorumServer)o;          
-            if ((qs.id != id) || (qs.type != type)) return false;   
-            if (!checkAddressesEqual(addr, qs.addr)) return false;
-            if (!checkAddressesEqual(electionAddr, qs.electionAddr)) return false;
-            if (!checkAddressesEqual(clientAddr, qs.clientAddr)) return false;                    
-            return true;
-        }
-
-        public void checkAddressDuplicate(QuorumServer s) throws BadArgumentsException {
-            List<InetSocketAddress> otherAddrs = new ArrayList<InetSocketAddress>();
-            otherAddrs.add(s.addr);
-            otherAddrs.add(s.clientAddr);
-            otherAddrs.add(s.electionAddr);
-            otherAddrs = excludedSpecialAddresses(otherAddrs);
-
-            for (InetSocketAddress my: this.myAddrs) {
-
-                for (InetSocketAddress other: otherAddrs) {
-                    if (my.equals(other)) {
-                        String error = String.format("%s of server.%d conflicts %s of server.%d", my, this.id, other, s.id);
-                        throw new BadArgumentsException(error);
-                    }
-                }
-            }
-        }
-
-        private List<InetSocketAddress> excludedSpecialAddresses(List<InetSocketAddress> addrs) {
-            List<InetSocketAddress> included = new ArrayList<InetSocketAddress>();
-            InetAddress wcAddr = new InetSocketAddress(0).getAddress();
-
-            for (InetSocketAddress addr : addrs) {
-                if (addr == null) {
-                    continue;
-                }
-                InetAddress inetaddr = addr.getAddress();
-
-                if (inetaddr == null ||
-                    inetaddr.equals(wcAddr) || // wildCard address(0.0.0.0)
-                    inetaddr.isLoopbackAddress()) { // loopback address(localhost/127.0.0.1)
-                    continue;
-                }
-                included.add(addr);
-            }
-            return included;
-        }
-    }
 
 
     public enum ServerState {
@@ -888,7 +530,15 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             LOG.warn("Problem starting AdminServer", e);
             System.out.println(e);
         }
-        startLeaderElection();
+
+        try {
+            startLeaderElection();
+        } catch (IOException | ChannelException | ExecutionException |
+                InterruptedException | ElectionException exp) {
+            LOG.warn("Problem starting Leader election", exp);
+            System.out.println(exp);
+            throw new RuntimeException(exp);
+        }
         super.start();
     }
 
@@ -941,7 +591,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         responder.running = false;
         responder.interrupt();
     }
-    synchronized public void startLeaderElection() {
+    synchronized public void startLeaderElection() throws InterruptedException, ChannelException, ElectionException, ExecutionException, IOException {
        try {
            if (getPeerState() == ServerState.LOOKING) {
                currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());
@@ -1060,7 +710,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     }
 
     @SuppressWarnings("deprecation")
-    protected Election createElectionAlgorithm(int electionAlgorithm){
+    protected Election createElectionAlgorithm(int electionAlgorithm) throws IOException, ChannelException, InterruptedException, ExecutionException, ElectionException {
         Election le=null;
 
         //TODO: use a factory rather than a switch
@@ -1075,12 +725,23 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             le = new AuthFastLeaderElection(this, true);
             break;
         case 3:
+            final List<QuorumServer> quorumServerList = new ArrayList<>();
+            for (final Map.Entry<Long, QuorumServer> entry : getQuorumVerifier()
+                    .getVotingMembers().entrySet()) {
+                quorumServerList.add(entry.getValue());
+            }
+
+            final VoteView voteView = new VoteView("netty",
+                    this.getId(), quorumServerList, getElectionAddress(),
+                    500L, 10L,
+                    200L, 3);
             qcm = new QuorumCnxManager(this);
             QuorumCnxManager.Listener listener = qcm.listener;
             if(listener != null){
                 listener.start();
-                FastLeaderElection fle = new FastLeaderElection(this, qcm);
-                fle.start();
+                FastLeaderElection fle = new FastLeaderElection(this.getId(), this
+                        .getLearnerType(), getQuorumVerifier(), voteView, voteView);
+                fle.lookForLeader(getAcceptedEpoch(), getLastLoggedZxid());
                 le = fle;
             } else {
                 LOG.error("Null listener when initializing cnx manager");
@@ -1344,7 +1005,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
      * A 'view' is a node's current opinion of the membership of the entire
      * ensemble.
      */
-    public Map<Long,QuorumPeer.QuorumServer> getView() {
+    public Map<Long,QuorumServer> getView() {
         return Collections.unmodifiableMap(getQuorumVerifier().getAllMembers());
     }
 
@@ -1352,14 +1013,14 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
      * Observers are not contained in this view, only nodes with
      * PeerType=PARTICIPANT.
      */
-    public Map<Long,QuorumPeer.QuorumServer> getVotingView() {
+    public Map<Long,QuorumServer> getVotingView() {
         return getQuorumVerifier().getVotingMembers();
     }
 
     /**
      * Returns only observers, no followers.
      */
-    public Map<Long,QuorumPeer.QuorumServer> getObservingView() {
+    public Map<Long,QuorumServer> getObservingView() {
        return getQuorumVerifier().getObservingMembers();
     }
 
@@ -1554,7 +1215,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         }
     }
 
-    public synchronized void restartLeaderElection(QuorumVerifier qvOLD, QuorumVerifier qvNEW){
+    public synchronized void restartLeaderElection(QuorumVerifier qvOLD, QuorumVerifier qvNEW) throws InterruptedException, ElectionException, IOException, ExecutionException, ChannelException {
         if (qvOLD == null || !qvOLD.equals(qvNEW)) {
             LOG.warn("Restarting Leader Election");
             getElectionAlg().shutdown();
@@ -1639,6 +1300,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         }
     }
 
+    @Override
     public String getQuorumServerFingerPrintByElectionAddress(
             final InetAddress serverElectionAddr) {
         synchronized(this) {
@@ -1658,6 +1320,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         }
     }
 
+    @Override
     public String getQuorumServerFingerPrintByCert(
             final X509Certificate cert) throws CertificateEncodingException,
             NoSuchAlgorithmException {
@@ -1679,8 +1342,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
      * @param quorumServerMap
      * @return String Fingerprint , null if could not find.
      */
-    private String getQuorumServerFingerPrintByElectionAddress(
-            final Map<Long,QuorumPeer.QuorumServer> quorumServerMap,
+    public static String getQuorumServerFingerPrintByElectionAddress(
+            final Map<Long,QuorumServer> quorumServerMap,
             final InetAddress serverElectionAddr) {
         for (QuorumServer quorumServer : quorumServerMap.values()) {
             if (quorumServer.electionAddr.getAddress()
@@ -1692,8 +1355,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         return null;
     }
 
-    private String getQuorumServerFingerPrintByCert(
-            final Map<Long,QuorumPeer.QuorumServer> quorumServerMap,
+    public static String getQuorumServerFingerPrintByCert(
+            final Map<Long,QuorumServer> quorumServerMap,
             final X509Certificate incomingPeerCert)
             throws CertificateEncodingException, NoSuchAlgorithmException {
         for (QuorumServer quorumServer : quorumServerMap.values()) {
@@ -1966,7 +1629,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         writeLongToFile(ACCEPTED_EPOCH_FILENAME, e);
     }
    
-    public boolean processReconfig(QuorumVerifier qv, Long suggestedLeaderId, Long zxid, boolean restartLE) {
+    public boolean processReconfig(QuorumVerifier qv, Long suggestedLeaderId, Long zxid, boolean restartLE) throws InterruptedException, ElectionException, ChannelException, ExecutionException, IOException {
        InetSocketAddress oldClientAddr = getClientAddress();
 
        // update last committed quorum verifier, write the new config to disk
@@ -2087,7 +1750,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
    private boolean updateVote(long designatedLeader, long zxid){       
        Vote currentVote = getCurrentVote();
        if (currentVote!=null && designatedLeader != currentVote.getId()) {
-           setCurrentVote(new Vote(designatedLeader, zxid));
+           setCurrentVote(new Vote(designatedLeader, zxid, getId()));
            reconfigFlagSet();
            LOG.warn("Suggested leader: " + designatedLeader);
            return true;
@@ -2107,7 +1770,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             setCurrentVote(new Vote(currentVote.getId(),
                 currentVote.getZxid(),
                 currentVote.getElectionEpoch(),
-                newEpoch,
+                newEpoch, getId(),
                 currentVote.getState()));
         }
     }
