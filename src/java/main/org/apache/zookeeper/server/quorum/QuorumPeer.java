@@ -33,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,6 +51,7 @@ import org.apache.zookeeper.SSLCertCfg;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom;
 import org.apache.zookeeper.common.AtomicFileWritingIdiom.WriterStatement;
 import org.apache.zookeeper.common.Time;
+import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.common.X509Util;
 import org.apache.zookeeper.jmx.MBeanRegistry;
 import org.apache.zookeeper.jmx.ZKMBeanInfo;
@@ -65,6 +67,7 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
+import org.apache.zookeeper.server.quorum.util.QuorumSSLContext;
 import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.slf4j.Logger;
@@ -105,7 +108,7 @@ public class QuorumPeer extends ZooKeeperThread implements
     LocalPeerBean jmxLocalPeerBean;
     private Map<Long, RemotePeerBean> jmxRemotePeerBean;
     LeaderElectionBean jmxLeaderElectionBean;
-    private QuorumCnxManager qcm;
+    private VoteView voteView;
 
     /**
      * ZKDatabase is a top level member of quorumpeer
@@ -731,21 +734,26 @@ public class QuorumPeer extends ZooKeeperThread implements
                 quorumServerList.add(entry.getValue());
             }
 
-            final VoteView voteView = new VoteView("netty",
+            voteView = new VoteView("netty",
                     this.getId(), quorumServerList, getElectionAddress(),
                     500L, 10L,
                     200L, 3);
-            qcm = new QuorumCnxManager(this);
-            QuorumCnxManager.Listener listener = qcm.listener;
-            if(listener != null){
-                listener.start();
-                FastLeaderElection fle = new FastLeaderElection(this.getId(), this
-                        .getLearnerType(), getQuorumVerifier(), voteView, voteView);
-                fle.lookForLeader(getAcceptedEpoch(), getLastLoggedZxid());
-                le = fle;
-            } else {
-                LOG.error("Null listener when initializing cnx manager");
+            try {
+                voteView.start(new QuorumSSLContext(this,
+                        new QuorumPeerConfig()));
+            } catch (CertificateException
+                | X509Exception.TrustManagerException
+                | X509Exception.KeyManagerException |
+                NoSuchAlgorithmException exp) {
+                final String errStr = "Unable to start vote view for sid: "
+                        + voteView.getId();
+                LOG.error("{}", errStr, exp);
+                throw new RuntimeException(errStr, exp);
             }
+            FastLeaderElection fle = new FastLeaderElection(this.getId(),
+                    this.getLearnerType(), getQuorumVerifier(), voteView, voteView);
+            fle.lookForLeader(getAcceptedEpoch(), getLastLoggedZxid());
+            le = fle;
             break;
         default:
             assert false;
@@ -1203,13 +1211,14 @@ public class QuorumPeer extends ZooKeeperThread implements
         }
     }
     
-    private void connectNewPeers(){
+    private void connectNewPeers() throws Exception {
         synchronized (QV_LOCK) {
-            if (qcm != null && quorumVerifier != null && lastSeenQuorumVerifier != null) {
+            if (voteView != null && quorumVerifier != null && lastSeenQuorumVerifier
+                    != null) {
                 Map<Long, QuorumServer> committedView = quorumVerifier.getAllMembers();
                 for (Entry<Long, QuorumServer> e : lastSeenQuorumVerifier.getAllMembers().entrySet()) {
                     if (e.getKey() != getId() && !committedView.containsKey(e.getKey()))
-                        qcm.connectOne(e.getKey());
+                        voteView.addServer(e.getValue());
                 }
             }
         }
@@ -1228,7 +1237,7 @@ public class QuorumPeer extends ZooKeeperThread implements
         return configFilename + QuorumPeerConfig.nextDynamicConfigFileSuffix;
     }
     
-    public void setLastSeenQuorumVerifier(QuorumVerifier qv, boolean writeToDisk){
+    public void setLastSeenQuorumVerifier(QuorumVerifier qv, boolean writeToDisk) throws Exception {
         synchronized (QV_LOCK) {
             if (lastSeenQuorumVerifier != null && lastSeenQuorumVerifier.getVersion() > qv.getVersion()) {
                 LOG.error("setLastSeenQuorumVerifier called with stale config " + qv.getVersion() +
@@ -1560,12 +1569,6 @@ public class QuorumPeer extends ZooKeeperThread implements
         return running;
     }
 
-    /**
-     * get reference to QuorumCnxManager
-     */
-    public QuorumCnxManager getQuorumCnxManager() {
-        return qcm;
-    }
     private long readLongFromFile(String name) throws IOException {
         File file = new File(logFactory.getSnapDir(), name);
         BufferedReader br = new BufferedReader(new FileReader(file));

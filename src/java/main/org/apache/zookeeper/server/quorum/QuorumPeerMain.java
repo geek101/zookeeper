@@ -17,7 +17,6 @@
  */
 package org.apache.zookeeper.server.quorum;
 
-import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.management.JMException;
@@ -106,8 +105,7 @@ public class QuorumPeerMain {
     }
 
     protected void initializeAndRun(String[] args)
-        throws ConfigException, IOException, AdminServerException
-    {
+            throws Exception {
         QuorumPeerConfig config = new QuorumPeerConfig();
         if (args.length == 1) {
             config.parse(args[0]);
@@ -135,10 +133,7 @@ public class QuorumPeerMain {
         }
     }
 
-    public void runFromConfig(QuorumPeerConfig config) throws IOException,
-            AdminServerException, NoSuchAlgorithmException,
-            X509Exception.KeyManagerException,
-            X509Exception.TrustManagerException {
+    public void runFromConfig(QuorumPeerConfig config) throws Exception {
       try {
           ManagedUtil.registerLog4jMBeans();
       } catch (JMException e) {
