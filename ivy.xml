@@ -58,9 +58,13 @@
                 rev="4.1.8.Final"/>
     <dependency org="org.apache.commons" name="commons-lang3" conf="default"
                 rev="3.5"/>
+    <dependency org="org.bouncycastle" name="bcprov-jdk15on" conf="default"
+                rev="1.56"/>
 
     <dependency org="commons-validator" name="commons-validator" rev="1.5.1"/>
 
+    <dependency org="org.bouncycastle" name="bcpkix-jdk15on" conf="test->default"
+                rev="1.56"/>
     <dependency org="junit" name="junit" rev="4.12" conf="test->default"/>
 	<dependency org="org.mockito" name="mockito-all" rev="1.8.2"
                conf="test->default"/>

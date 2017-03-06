@@ -110,6 +110,44 @@ public class VoteView extends VoteViewBase {
                 keepAliveCount);
     }
 
+    /**
+     * Used by Test code.
+     * @param sid
+     * @param quorumServerList
+     * @param electionAddr
+     * @return
+     * @throws IOException
+     * @throws ChannelException
+     */
+    public static VoteView createVoteView(
+            final long sid, final List<QuorumServer> quorumServerList,
+            final InetSocketAddress electionAddr) {
+        try {
+            return new VoteView("netty",
+                    sid, quorumServerList, electionAddr,
+                    500L, 100L,
+                    200L, 3);
+        } catch (IOException | ChannelException exp) {
+            final String errStr = "Unable to start vote view for sid: " + sid;
+            LOG.error("{}", errStr, exp);
+            throw new RuntimeException(errStr, exp);
+        }
+    }
+
+    public void  startSafe(final SSLContextCreator sslContextCreator) {
+        try {
+            start(sslContextCreator);
+        } catch (CertificateException | ChannelException | IOException
+                | X509Exception.TrustManagerException
+                | X509Exception.KeyManagerException |
+                NoSuchAlgorithmException exp) {
+            final String errStr = "Unable to start vote view for sid: "
+                    + getId();
+            LOG.error("{}", errStr, exp);
+            throw new RuntimeException(errStr, exp);
+        }
+    }
+
     public void start(final SSLContextCreator sslContextCreator)
             throws IOException, ChannelException, CertificateException,
             NoSuchAlgorithmException, X509Exception.KeyManagerException,

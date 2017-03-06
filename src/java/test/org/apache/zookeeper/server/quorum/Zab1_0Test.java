@@ -954,7 +954,7 @@ public class Zab1_0Test extends ZKTestCase {
     public void testTxnTimeout() throws Exception {
         testLeaderConversation(new LeaderConversation() {
             public void converseWithLeader(InputArchive ia, OutputArchive oa, Leader l)
-                    throws IOException, InterruptedException, org.apache.zookeeper.server.quorum.Leader.XidRolloverException {
+                    throws Exception {
                 Assert.assertEquals(0, l.self.getAcceptedEpoch());
                 Assert.assertEquals(0, l.self.getCurrentEpoch());
                 

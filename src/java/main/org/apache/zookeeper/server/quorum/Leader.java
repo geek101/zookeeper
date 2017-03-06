@@ -1035,7 +1035,7 @@ public class Leader {
      * @param request
      * @return the proposal that is queued to send to all the members
      */
-    public Proposal propose(Request request) throws XidRolloverException {
+    public Proposal propose(Request request) throws Exception {
         /**
          * Address the rollover issue. All lower 32bits set indicate a new leader
          * election. Force a re-election instead. See ZOOKEEPER-1277

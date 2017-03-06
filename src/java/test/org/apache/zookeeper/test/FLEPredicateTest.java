@@ -21,27 +21,31 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
+import java.util.concurrent.ExecutionException;
 
-import org.apache.zookeeper.server.quorum.FastLeaderElection;
-import org.apache.zookeeper.server.quorum.QuorumCnxManager;
-import org.apache.zookeeper.server.quorum.QuorumPeer;
-import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.PortAssignment;
 import org.apache.zookeeper.ZKTestCase;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import org.apache.zookeeper.server.quorum.ElectionException;
+import org.apache.zookeeper.server.quorum.FastLeaderElection;
+import org.apache.zookeeper.server.quorum.QuorumPeer;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.apache.zookeeper.server.quorum.QuorumServer;
+import org.apache.zookeeper.server.quorum.VoteView;
+import org.apache.zookeeper.server.quorum.util.QuorumSSLContext;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FLEPredicateTest extends ZKTestCase {
     
     protected static final Logger LOG = LoggerFactory.getLogger(FLEPredicateTest.class);
-    
+
     class MockFLE extends FastLeaderElection {
-        MockFLE(QuorumPeer peer){
-            super(peer, new QuorumCnxManager(peer));
+        protected VoteView voteView;
+        MockFLE(final QuorumPeer peer, final VoteView voteView){
+            super(peer.getId(), peer.getLearnerType(), peer.getQuorumVerifier
+                    (), voteView, voteView);
         }
         
         boolean predicate(long newId, long newZxid, long newEpoch, long curId, long curZxid, long curEpoch){
@@ -53,7 +57,7 @@ public class FLEPredicateTest extends ZKTestCase {
     HashMap<Long,QuorumServer> peers;
     
     @Test
-    public void testPredicate() throws IOException {
+    public void testPredicate() throws IOException, InterruptedException, ExecutionException {
         
         peers = new HashMap<Long,QuorumServer>(3);
         
@@ -76,9 +80,19 @@ public class FLEPredicateTest extends ZKTestCase {
             File tmpDir = ClientBase.createTmpDir();
             QuorumPeer peer = new QuorumPeer(peers, tmpDir, tmpDir,
                                         PortAssignment.unique(), 3, 0, 1000, 2, 2);
-        
-            MockFLE mock = new MockFLE(peer);
-            mock.start();
+
+            final VoteView voteView = VoteView.createVoteView(peer.getId(),
+                    peer.getQuorumVerifierServerList(),
+                    peer.getElectionAddress());
+            MockFLE mock = new MockFLE(peer, voteView);
+            voteView.startSafe(new QuorumSSLContext(peer,
+                    new QuorumPeerConfig()));
+            try {
+                mock.lookForLeader(peer.getAcceptedEpoch(), peer.getLastLoggedZxid());
+            } catch (ElectionException | InterruptedException
+                    | ExecutionException exp) {
+                throw new RuntimeException(exp);
+            }
             
             /*
              * Lower epoch must return false
@@ -100,6 +114,7 @@ public class FLEPredicateTest extends ZKTestCase {
              * Higher id
              */
             Assert.assertTrue(mock.predicate(1L, 1L, 0L, 0L, 1L, 0L));
+            voteView.shutdown().get();
         } catch (IOException e) {
             LOG.error("Exception while creating quorum peer", e);
             Assert.fail("Exception while creating quorum peer");

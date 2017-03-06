@@ -89,7 +89,7 @@ public class FastLeaderElection implements Election {
     protected Object suggestedForTermination = null;
 
     /**
-     * Returns the current vlue of the logical clock counter
+     * Returns the current value of the logical clock counter
      */
     public long getLogicalClock(){
         return logicalclock;
@@ -99,8 +99,8 @@ public class FastLeaderElection implements Election {
     public FastLeaderElection(final long mySid, 
                               final QuorumPeer.LearnerType learnerType,
                               final QuorumVerifier quorumVerifier,
-                              VoteViewConsumerCtrl voteViewConsumerCtrl,
-                              VoteViewChange voteViewChange) {
+                              final VoteViewConsumerCtrl voteViewConsumerCtrl,
+                              final VoteViewChange voteViewChange) {
         this.mySid = mySid;
         this.learnerType = learnerType;
         this.quorumVerifier = quorumVerifier;
@@ -113,7 +113,7 @@ public class FastLeaderElection implements Election {
         this.LOG = new LogPrefix(LOGS, "mySid:" + this.mySid +
                 "-electionEpoch:0");
         waitForLookRunFuture.set(
-                CompletableFuture.completedFuture((Collection<Vote>)null));
+                CompletableFuture.completedFuture(null));
     }
 
     private void leaveInstance(Vote v) throws InterruptedException,
@@ -142,6 +142,10 @@ public class FastLeaderElection implements Election {
     public void shutdown(){
         stop = true;
         LOG.debug("FLE is down");
+    }
+
+    public Vote getVote() {
+        return voteViewChange.getSelfVote();
     }
 
     /**

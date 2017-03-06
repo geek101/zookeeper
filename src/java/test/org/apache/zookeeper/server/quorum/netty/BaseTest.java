@@ -72,6 +72,9 @@ import org.apache.zookeeper.server.quorum.helpers.QuorumPeerDynCheckWrapper;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.apache.zookeeper.server.quorum.util.QuorumX509Util;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,30 +89,18 @@ import static org.junit.Assert.assertTrue;
 public class BaseTest {
     protected static final Logger LOG = LoggerFactory.getLogger(
             BaseTest.class.getName());
-    protected static ArrayList<String> keyStore
-            = new ArrayList<>(Arrays.asList("x509ca/java/node1.ks",
-                    "x509ca/java/node2.ks",
-                    "x509ca/java/node3.ks"));
-    protected static ArrayList<String> keyPassword
-            = new ArrayList<>(
-            Arrays.asList("CertPassword1", "CertPassword1", "CertPassword1"));
-    protected static ArrayList<String> trustStore = new ArrayList<>(
-            Arrays.asList("x509ca/java/truststore.jks"));
-    protected static ArrayList<String> trustPassword
-            = new ArrayList<>(Arrays.asList("StorePass"));
+    protected X509ClusterBase x509Cluster;
+
+    protected List<String> keyStore;
+    protected List<String> keyPassword;
+    protected List<String> trustStore ;
+    protected List<String> trustPassword;
     protected static String trustStoreCAAlias = "ca";
 
-    protected static ArrayList<String> badKeyStore
-            = new ArrayList<>(Arrays.asList("x509ca2/java/node1.ks",
-            "x509ca2/java/node2.ks",
-            "x509ca2/java/node3.ks"));
-    protected static ArrayList<String> badKeyPassword
-            = new ArrayList<>(
-            Arrays.asList("CertPassword1", "CertPassword1", "CertPassword1"));
-    protected static ArrayList<String> badTrustStore = new ArrayList<>(
-            Arrays.asList("x509ca2/java/truststore.jks"));
-    protected static ArrayList<String> badTrustPassword
-            = new ArrayList<>(Arrays.asList("StorePass"));
+    protected List<String> badKeyStore;
+    protected List<String> badKeyPassword;
+    protected List<String> badTrustStore;
+    protected List<String> badTrustPassword;
     protected static String badTrustStoreCAAlias = "ca";
 
     protected final ExecutorService executor = Executors
@@ -127,6 +118,30 @@ public class BaseTest {
 
     protected List<QuorumPeerConfig> quorumPeerConfigList =
             new ArrayList<>();
+
+    @Rule
+    public TemporaryFolder testFolder = new TemporaryFolder();
+
+    @Before
+    public void setup() throws Exception {
+        x509Cluster = new X509ClusterCASigned("foo",
+                testFolder.newFolder("ssl").toPath(), 3);
+        keyStore = new ArrayList<>();
+        x509Cluster.getKeyStoreList().forEach(x -> keyStore.add(x.toString()));
+        keyPassword = x509Cluster.getKeyStorePasswordList();
+        trustStore = Collections.singletonList(
+                x509Cluster.getTrustStore().toString());
+        trustPassword = Collections.singletonList(
+                x509Cluster.getTrustStorePassword());
+        badKeyStore = new ArrayList<>();
+        x509Cluster.getBadKeyStoreList().forEach(x -> badKeyStore.add(x.toString()));
+        badKeyPassword = x509Cluster.getBadKeyStorePasswordList();
+        badTrustStore = Collections.singletonList(
+                x509Cluster.getBadTrustStore().toString());
+        badTrustPassword = Collections.singletonList(
+                x509Cluster.getBadTrustStorePassword());
+
+    }
 
     protected ChannelFuture startListener(final InetSocketAddress listenerAddr,
                                           final EventLoopGroup group,
@@ -441,12 +456,11 @@ public class BaseTest {
             final String keyStorePassword, final String trustStore,
             final String trustPassword) {
         final QuorumPeerConfig quorumPeerConfig = new QuorumPeerConfig();
-        quorumPeerConfig.setProperty(SSL_KEYSTORE_LOCATION,
-                cl.getResource(keyStore).getFile());
+        quorumPeerConfig.setProperty(SSL_KEYSTORE_LOCATION, keyStore);
         quorumPeerConfig.setProperty(SSL_KEYSTORE_PASSWD,
                 keyStorePassword);
         quorumPeerConfig.setProperty(SSL_TRUSTSTORE_LOCATION,
-                cl.getResource(trustStore).getFile());
+                trustStore);
         quorumPeerConfig.setProperty(SSL_KEYSTORE_PASSWD,
                 trustPassword);
         return quorumPeerConfig;

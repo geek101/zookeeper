@@ -35,12 +35,11 @@ import org.apache.zookeeper.PortAssignment;
 import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.quorum.Election;
-import org.apache.zookeeper.server.quorum.FLELostMessageTest;
 import org.apache.zookeeper.server.quorum.LeaderElection;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.server.quorum.Vote;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
 import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
@@ -231,7 +230,7 @@ public class LENonTerminateTest extends ZKTestCase {
     }
 
 
-    protected static final Logger LOG = LoggerFactory.getLogger(FLELostMessageTest.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(LENonTerminateTest.class);
 
     int count;
     HashMap<Long,QuorumServer> peers;

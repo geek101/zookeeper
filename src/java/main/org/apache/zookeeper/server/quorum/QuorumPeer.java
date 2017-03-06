@@ -728,28 +728,10 @@ public class QuorumPeer extends ZooKeeperThread implements
             le = new AuthFastLeaderElection(this, true);
             break;
         case 3:
-            final List<QuorumServer> quorumServerList = new ArrayList<>();
-            for (final Map.Entry<Long, QuorumServer> entry : getQuorumVerifier()
-                    .getVotingMembers().entrySet()) {
-                quorumServerList.add(entry.getValue());
-            }
-
-            voteView = new VoteView("netty",
-                    this.getId(), quorumServerList, getElectionAddress(),
-                    500L, 10L,
-                    200L, 3);
-            try {
-                voteView.start(new QuorumSSLContext(this,
-                        new QuorumPeerConfig()));
-            } catch (CertificateException
-                | X509Exception.TrustManagerException
-                | X509Exception.KeyManagerException |
-                NoSuchAlgorithmException exp) {
-                final String errStr = "Unable to start vote view for sid: "
-                        + voteView.getId();
-                LOG.error("{}", errStr, exp);
-                throw new RuntimeException(errStr, exp);
-            }
+            voteView = VoteView.createVoteView(this.getId(),
+                    getQuorumVerifierServerList(), getElectionAddress());
+            voteView.startSafe(new QuorumSSLContext(this,
+                    new QuorumPeerConfig()));
             FastLeaderElection fle = new FastLeaderElection(this.getId(),
                     this.getLearnerType(), getQuorumVerifier(), voteView, voteView);
             fle.lookForLeader(getAcceptedEpoch(), getLastLoggedZxid());
@@ -759,6 +741,15 @@ public class QuorumPeer extends ZooKeeperThread implements
             assert false;
         }
         return le;
+    }
+
+    public List<QuorumServer> getQuorumVerifierServerList() {
+        final List<QuorumServer> quorumServerList = new ArrayList<>();
+        for (final Map.Entry<Long, QuorumServer> entry : getQuorumVerifier()
+                .getVotingMembers().entrySet()) {
+            quorumServerList.add(entry.getValue());
+        }
+        return quorumServerList;
     }
 
     @SuppressWarnings("deprecation")

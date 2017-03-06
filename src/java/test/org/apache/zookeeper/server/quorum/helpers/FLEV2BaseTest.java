@@ -28,9 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FLEV2BaseTest extends BaseTest {
-    protected static final Logger LOG
-            = LoggerFactory.getLogger(
-            FLEV2BaseTest.class.getName());
+    protected static final Logger LOG =
+            LoggerFactory.getLogger(FLEV2BaseTest.class.getName());
 
     protected final String ensembleType;
     protected final int stableTimeoutMsec;

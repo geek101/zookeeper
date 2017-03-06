@@ -21,7 +21,6 @@ package org.apache.zookeeper.server.quorum;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.RequestProcessor;
 import org.apache.zookeeper.server.SyncRequestProcessor;
-import org.apache.zookeeper.server.quorum.Leader.XidRolloverException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +75,7 @@ public class ProposalRequestProcessor implements RequestProcessor {
                 // We need to sync and get consensus on any transactions
                 try {
                     zks.getLeader().propose(request);
-                } catch (XidRolloverException e) {
+                } catch (Exception e) {
                     throw new RequestProcessorException(e.getMessage(), e);
                 }
                 syncProcessor.processRequest(request);

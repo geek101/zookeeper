@@ -53,8 +53,10 @@ public class NettyChannelMgrTest extends BaseTest {
     private EventLoopGroup eventLoopGroup = null;
     private final boolean sslEnabled = false;
 
+    @Override
     @Before
     public void setup() throws Exception {
+        super.setup();
         eventLoopGroup = new NioEventLoopGroup(1, executor);
     }
 
