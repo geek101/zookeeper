@@ -47,7 +47,7 @@ import static org.junit.Assert.assertTrue;
 
 public class NettyChannelMgrTest extends BaseTest {
     private static final Logger LOG = LoggerFactory.getLogger
-            (QuorumBroadcastTest.class);
+            (QuorumVoteBroadcastTest.class);
     private final ExecutorService executor
             = Executors.newSingleThreadExecutor();
     private EventLoopGroup eventLoopGroup = null;

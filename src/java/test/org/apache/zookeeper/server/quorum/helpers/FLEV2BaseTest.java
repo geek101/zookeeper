@@ -89,9 +89,9 @@ public class FLEV2BaseTest extends BaseTest {
                 this.readTimeoutMsec,
                 this.connectTimeoutMsec, this.keepAliveTimeoutMsec,
                 this.keepAliveCount,
-                cl.getResource(this.keyStore.get(0)).getFile(),
+                this.keyStore.get(0),
                 this.keyPassword.get(0),
-                cl.getResource(this.trustStore.get(0)).getFile(),
+                this.trustStore.get(0),
                 this.trustPassword.get(0), this.trustStoreCAAlias);
     }
 

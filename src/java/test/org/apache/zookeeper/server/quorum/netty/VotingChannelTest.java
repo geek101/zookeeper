@@ -59,7 +59,7 @@ public class VotingChannelTest extends BaseTest {
 
     QuorumServer listenServer;
     private final QuorumServer client1
-            = new QuorumServer(2, new InetSocketAddress("localhost",
+            = new QuorumServer(2, null, new InetSocketAddress("localhost",
             PortAssignment.unique()));
 
     private final ConcurrentLinkedQueue<Long> inboundSidQueue
@@ -86,8 +86,10 @@ public class VotingChannelTest extends BaseTest {
 
     private final MsgRxCb msgRxCb = new MsgRxCb();
 
+    @Override
     @Before
     public void setup() throws Exception {
+        super.setup();
         sslEnabled = false;
         eventLoopGroup = new NioEventLoopGroup(1, executor);
     }
@@ -131,7 +133,7 @@ public class VotingChannelTest extends BaseTest {
     public void testServerChannelHdrRead() throws IOException, X509Exception,
             NoSuchAlgorithmException, InterruptedException, ChannelException,
             CertificateException, KeyStoreException {
-        listenServer = new QuorumServer(1,
+        listenServer = new QuorumServer(1, null,
                 new InetSocketAddress("localhost", PortAssignment.unique()));
 
         ChannelFuture listenFuture = startListenAndConnectClient(listenServer);
@@ -166,7 +168,7 @@ public class VotingChannelTest extends BaseTest {
     public void testServerChannelResolveSidClose() throws IOException,
             X509Exception, NoSuchAlgorithmException, InterruptedException,
             ChannelException, CertificateException, KeyStoreException {
-        listenServer = new QuorumServer(4,
+        listenServer = new QuorumServer(4, null,
                 new InetSocketAddress("localhost", PortAssignment.unique()));
         ChannelFuture listenFuture;
         Socket socket;
@@ -262,7 +264,7 @@ public class VotingChannelTest extends BaseTest {
     public void testServerChannelHdrTimeout() throws IOException,
             X509Exception, NoSuchAlgorithmException, InterruptedException,
             ChannelException, CertificateException, KeyStoreException {
-        listenServer = new QuorumServer(1,
+        listenServer = new QuorumServer(1, null,
                 new InetSocketAddress("localhost", PortAssignment.unique()));
         ChannelFuture listenFuture;
         Socket socket;
@@ -433,7 +435,7 @@ public class VotingChannelTest extends BaseTest {
             throws IOException, X509Exception, NoSuchAlgorithmException,
             InterruptedException, CertificateException, KeyStoreException {
         listenServer
-                = new QuorumServer(1,
+                = new QuorumServer(1, null,
                 new InetSocketAddress("localhost", listenPort));
         serverSocket = newServerAndBindTest(listenServer, 0);
         final VotingClientChannel votingClientChannel

@@ -26,7 +26,7 @@ import org.apache.zookeeper.server.quorum.util.Callback;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 
 /**
- * Interface for QuorumBroadcast, has the external facing API.
+ * Interface for QuorumVoteBroadcast, has the external facing API.
  */
 public interface QuorumBroadcast {
     /**

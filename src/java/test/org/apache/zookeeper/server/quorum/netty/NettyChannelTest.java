@@ -42,8 +42,10 @@ import static org.junit.Assert.assertTrue;
  * Test all aspects of NettyChannel
  */
 public class NettyChannelTest extends BaseTest {
+    @Override
     @Before
     public void setup() throws Exception {
+        super.setup();
         eventLoopGroup = new NioEventLoopGroup(1, executor);
     }
 
@@ -58,7 +60,7 @@ public class NettyChannelTest extends BaseTest {
      */
     @Test(timeout = 1000)
     public void testConnectTimeout() throws InterruptedException {
-        final QuorumServer q = new QuorumServer(1,
+        final QuorumServer q = new QuorumServer(1, null,
                 new InetSocketAddress("localhost", PortAssignment.unique()));
 
         class TimeoutHandler extends MockChannel {
@@ -104,7 +106,7 @@ public class NettyChannelTest extends BaseTest {
     @Test(timeout = 1000)
     public void testReadTimeout()
             throws InterruptedException, ChannelException {
-        final QuorumServer q = new QuorumServer(1,
+        final QuorumServer q = new QuorumServer(1, null,
                 new InetSocketAddress("localhost", PortAssignment.unique()));
 
         class TimeoutHandler extends MockChannel {
@@ -178,7 +180,7 @@ public class NettyChannelTest extends BaseTest {
         int port = PortAssignment.unique();
         final InetSocketAddress listenAddr
                 = new InetSocketAddress("localhost", port);
-        QuorumServer q = new QuorumServer(1, listenAddr);;
+        QuorumServer q = new QuorumServer(1, null, listenAddr);;
 
         // Start the listener.
         MockReadHdrChannel hdrRcvHandler
@@ -225,7 +227,7 @@ public class NettyChannelTest extends BaseTest {
         int port = PortAssignment.unique();
         final InetSocketAddress listenAddr
                 = new InetSocketAddress("localhost", port);
-        QuorumServer q = new QuorumServer(1, listenAddr);;
+        QuorumServer q = new QuorumServer(1, null, listenAddr);;
 
         // Start the listener.
         MockReadDataChannel dataRcvHandler
@@ -303,7 +305,7 @@ public class NettyChannelTest extends BaseTest {
         int port = PortAssignment.unique();
         final InetSocketAddress listenAddr
                 = new InetSocketAddress("localhost", port);
-        QuorumServer q = new QuorumServer(1, listenAddr);;
+        QuorumServer q = new QuorumServer(1, null, listenAddr);
 
         // Start the listener.
         MockReadDataChannel dataRcvHandler
@@ -408,7 +410,7 @@ public class NettyChannelTest extends BaseTest {
         int port = PortAssignment.unique();
         final InetSocketAddress listenAddr
                 = new InetSocketAddress("localhost", port);
-        QuorumServer q = new QuorumServer(1, listenAddr);;
+        QuorumServer q = new QuorumServer(1, null, listenAddr);
 
         // Start the listener.
         MockReadDataChannel dataRcvHandler

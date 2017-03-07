@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.zookeeper.server.quorum.netty;
+package org.apache.zookeeper.server.quorum.helpers;
 
 
 import java.io.IOException;
@@ -61,7 +61,7 @@ public class X509ClusterCASigned extends X509ClusterBase {
             final X509Certificate nodeCert = buildEndEntityCert(
                     prefix+"_"+NODE_PREFIX + (i+1), caCert,
                     caKeyPair.getPrivate(), nodeKeyPair);
-            final Pair<Path, String> p = buildKeyStore(i+1, nodeKeyPair,
+            final Pair<Path, String> p = buildKeyStore(prefix, i+1, nodeKeyPair,
                     nodeCert);
             if (isGood) {
                 keyStoreList.add(p.getLeft());

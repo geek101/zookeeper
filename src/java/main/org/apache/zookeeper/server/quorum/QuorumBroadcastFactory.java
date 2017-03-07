@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.util.List;
 
 import io.netty.channel.EventLoopGroup;
+import org.apache.zookeeper.server.quorum.netty.QuorumVoteBroadcast;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 
 public class QuorumBroadcastFactory {
@@ -34,12 +35,12 @@ public class QuorumBroadcastFactory {
             final long keepAliveTimeoutMsec, final int keepAliveCount)
             throws ChannelException, IOException {
         if (type.equalsIgnoreCase("netty")) {
-            return new org.apache.zookeeper.server.quorum.netty.QuorumBroadcast(
+            return new QuorumVoteBroadcast(
                     myId, quorumServerList, electionAddr, eventLoopGroup,
                     readTimeoutMsec, connectTimeoutMsec,
                     keepAliveTimeoutMsec, keepAliveCount, false);
         } else if (type.equalsIgnoreCase("netty-ssl")) {
-            return new org.apache.zookeeper.server.quorum.netty.QuorumBroadcast(
+            return new QuorumVoteBroadcast(
                     myId, quorumServerList, electionAddr, eventLoopGroup,
                     readTimeoutMsec, connectTimeoutMsec, keepAliveTimeoutMsec,
                     keepAliveCount, true);

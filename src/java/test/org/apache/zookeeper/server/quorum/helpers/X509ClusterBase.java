@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.zookeeper.server.quorum.netty;
+package org.apache.zookeeper.server.quorum.helpers;
 
 
 import java.io.FileOutputStream;
@@ -83,6 +83,7 @@ public abstract class X509ClusterBase {
     protected String trustStorePassword;
     protected Path badTrustStore;
     protected String badTrustStorePassword;
+    private boolean initDone;
 
     public X509ClusterBase(final String clusterName,
                            final Path basePath, final int clusterSize) {
@@ -94,43 +95,58 @@ public abstract class X509ClusterBase {
         keyStorePasswordList = new ArrayList<>();
         badKeyStoreList = new ArrayList<>();
         badKeyStorePasswordList = new ArrayList<>();
-        Security.addProvider(new BouncyCastleProvider());
-        initCerts();
+        initDone = false;
     }
 
     public List<Path> getKeyStoreList() {
+        initOnce();
         return keyStoreList;
     }
 
     public List<String> getKeyStorePasswordList() {
+        initOnce();
         return keyStorePasswordList;
     }
 
     public List<Path> getBadKeyStoreList() {
+        initOnce();
         return badKeyStoreList;
     }
 
     public List<String> getBadKeyStorePasswordList() {
+        initOnce();
         return badKeyStorePasswordList;
     }
 
     public Path getTrustStore() {
+        initOnce();
         return trustStore;
     }
 
     public String getTrustStorePassword() {
+        initOnce();
         return trustStorePassword;
     }
 
     public Path getBadTrustStore() {
+        initOnce();
         return badTrustStore;
     }
 
     public String getBadTrustStorePassword() {
+        initOnce();
         return badTrustStorePassword;
     }
 
     protected abstract void initCerts();
+
+    private void initOnce() {
+        if (!initDone) {
+            Security.addProvider(new BouncyCastleProvider());
+            initCerts();
+            initDone = true;
+        }
+    }
 
     protected static KeyPair createRSAKeyPair()
             throws NoSuchAlgorithmException {
@@ -211,12 +227,12 @@ public abstract class X509ClusterBase {
                 .getCertificate(certBldr.build(signer));
     }
 
-    public Pair<Path, String> buildKeyStore(
+    public Pair<Path, String> buildKeyStore(final String prefix,
             final int index, final KeyPair keyPair, final X509Certificate cert)
             throws CertificateException, NoSuchAlgorithmException,
             KeyStoreException, IOException {
-        return Pair.of(buildKeyStore(basePath, NODE_PREFIX + index,
-                NODE_PREFIX + index, KEY_STORE_PASS, keyPair, cert),
+        return Pair.of(buildKeyStore(basePath, prefix+"_"+NODE_PREFIX + index,
+                prefix+"_"+NODE_PREFIX + index, KEY_STORE_PASS, keyPair, cert),
                 KEY_STORE_PASS);
     }
 
@@ -260,6 +276,6 @@ public abstract class X509ClusterBase {
             ks.store(fs, pass);
         }
 
-        return retPath;
+        return keyStorePath;
     }
 }

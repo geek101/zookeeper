@@ -29,7 +29,7 @@ import io.netty.channel.EventLoopGroup;
  * need to test the base class as is except for this.
  */
 public class VoteViewWrapper extends VoteView {
-    private final QuorumBcastWithCnxMesh quorumBcastWithCnxMesh;
+    private final QuorumVoteBcastWithCnxMesh quorumBcastWithCnxMesh;
     /**
      * Used for testing.
      * @param mySid
@@ -41,12 +41,12 @@ public class VoteViewWrapper extends VoteView {
                               final EventLoopGroup eventLoopGroup,
                               final QuorumBroadcast quorumBroadcast) {
         super(mySid, electionAddr, eventLoopGroup, quorumBroadcast);
-        if (!(quorumBroadcast instanceof QuorumBcastWithCnxMesh)) {
+        if (!(quorumBroadcast instanceof QuorumVoteBcastWithCnxMesh)) {
             throw new RuntimeException("invalid type for quorumBroadcast"
-                    + ", expected QuorumBcastWithCnxMesh, got: "
+                    + ", expected QuorumVoteBcastWithCnxMesh, got: "
                     + quorumBroadcast.getClass().getName());
         }
-        quorumBcastWithCnxMesh = (QuorumBcastWithCnxMesh)quorumBroadcast;
+        quorumBcastWithCnxMesh = (QuorumVoteBcastWithCnxMesh)quorumBroadcast;
     }
 
     @Override

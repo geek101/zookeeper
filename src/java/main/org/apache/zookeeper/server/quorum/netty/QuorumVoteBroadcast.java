@@ -25,9 +25,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Broadcaster of Vote used by FLE.
  */
-public class QuorumBroadcast implements org.apache.zookeeper.server.quorum.QuorumBroadcast {
+public class QuorumVoteBroadcast implements org.apache.zookeeper.server.quorum.QuorumBroadcast {
     private static final Logger LOG =
-            LoggerFactory.getLogger(QuorumBroadcast.class);
+            LoggerFactory.getLogger(QuorumVoteBroadcast.class);
     private final Long myId;
     private final Map<Long, QuorumServer> serverMap = new HashMap<>();
     private final InetSocketAddress electionAddr;
@@ -41,14 +41,14 @@ public class QuorumBroadcast implements org.apache.zookeeper.server.quorum.Quoru
     private VotingChannelMgr channelMgr;
     private boolean isShutdown = true;
 
-    public QuorumBroadcast(Long myId, List<QuorumServer> quorumServerList,
-                           final InetSocketAddress electionAddr,
-                           EventLoopGroup eventLoopGroup,
-                           final long readMsgTimeoutMs,
-                           final long connectTimeoutMs,
-                           final long keepAliveTimeoutMs,
-                           final int keepAliveCount,
-                           final boolean sslEnabled)
+    public QuorumVoteBroadcast(Long myId, List<QuorumServer> quorumServerList,
+                               final InetSocketAddress electionAddr,
+                               EventLoopGroup eventLoopGroup,
+                               final long readMsgTimeoutMs,
+                               final long connectTimeoutMs,
+                               final long keepAliveTimeoutMs,
+                               final int keepAliveCount,
+                               final boolean sslEnabled)
             throws ChannelException, IOException {
         this.myId = myId;
         this.electionAddr = electionAddr;

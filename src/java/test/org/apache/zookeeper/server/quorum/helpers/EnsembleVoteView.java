@@ -42,6 +42,7 @@ import org.apache.zookeeper.server.quorum.VoteViewChange;
 import org.apache.zookeeper.server.quorum.VoteViewConsumerCtrl;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
 import org.apache.zookeeper.server.quorum.netty.BaseTest;
+import org.apache.zookeeper.server.quorum.netty.QuorumVoteBroadcast;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.quorum.util.LogPrefix;
 import org.apache.zookeeper.server.quorum.util.QuorumSSLContext;
@@ -68,7 +69,7 @@ public class EnsembleVoteView extends AbstractEnsemble {
     private MockQuorumBcast mockQuorumBcast;
 
     private Map<Long,
-                ImmutablePair<QuorumBcastWithCnxMesh, VoteViewWrapper>>
+                ImmutablePair<QuorumVoteBcastWithCnxMesh, VoteViewWrapper>>
             quorumBcastAndVoteViewMap = new HashMap<>();
 
     private FLEV2Wrapper fleThatRan;
@@ -250,7 +251,7 @@ public class EnsembleVoteView extends AbstractEnsemble {
     @Override
     public Future<?> shutdown() {
         super.shutdown();
-        for (final ImmutablePair<QuorumBcastWithCnxMesh, VoteViewWrapper> p
+        for (final ImmutablePair<QuorumVoteBcastWithCnxMesh, VoteViewWrapper> p
                 : quorumBcastAndVoteViewMap.values()) {
             try {
                 p.getRight().shutdown().get();
@@ -325,10 +326,10 @@ public class EnsembleVoteView extends AbstractEnsemble {
                     }
                 }));
 
-        org.apache.zookeeper.server.quorum.netty.QuorumBroadcast quorumBroadcast;
+        QuorumVoteBroadcast quorumVoteBroadcast;
         try {
             // Create a quorumBcast per VoteView.
-            quorumBroadcast = new QuorumBcastWithCnxMesh(sid,
+            quorumVoteBroadcast = new QuorumVoteBcastWithCnxMesh(sid,
                     servers, serverMap.get(sid).getElectionAddr(),
                     eventLoopGroupForQBCast, readTimeoutMsec, connectTimeoutMsec,
                     keepAliveTimeoutMsec, keepAliveCount,
@@ -362,10 +363,10 @@ public class EnsembleVoteView extends AbstractEnsemble {
 
         final VoteViewWrapper voteViewWrapper = new VoteViewWrapper(sid,
                 serverMap.get(sid).getElectionAddr(), eventLoopGroupForVoteView,
-                quorumBroadcast);
+                quorumVoteBroadcast);
 
         quorumBcastAndVoteViewMap.put(sid,
-                ImmutablePair.of((QuorumBcastWithCnxMesh)quorumBroadcast,
+                ImmutablePair.of((QuorumVoteBcastWithCnxMesh) quorumVoteBroadcast,
                         voteViewWrapper));
 
         final QuorumPeerNonDynCheck quorumPeerNonDynCheck =

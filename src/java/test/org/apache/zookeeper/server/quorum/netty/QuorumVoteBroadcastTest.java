@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.zookeeper.server.quorum.QuorumBroadcast;
 import org.apache.zookeeper.server.quorum.QuorumBroadcastFactory;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 import org.apache.zookeeper.server.quorum.QuorumServer;
@@ -51,9 +52,9 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
-public class QuorumBroadcastTest extends BaseTest {
+public class QuorumVoteBroadcastTest extends BaseTest {
     private static final Logger LOG
-            = LoggerFactory.getLogger(QuorumBroadcastTest.class);
+            = LoggerFactory.getLogger(QuorumVoteBroadcastTest.class);
 
     private final String type;
     private final long readTimeoutMsec;
@@ -66,7 +67,7 @@ public class QuorumBroadcastTest extends BaseTest {
     private EventLoopGroup eventLoopGroup;
     private HashMap<Long, List<QuorumServer>> qbastConfMap
             = new HashMap<>();
-    private HashMap<Long, org.apache.zookeeper.server.quorum.QuorumBroadcast> qbcastMap
+    private HashMap<Long, QuorumBroadcast> qbcastMap
             = new HashMap<>();
     private long idCount = 1L;
     final long rgenseed = System.currentTimeMillis();
@@ -85,15 +86,17 @@ public class QuorumBroadcastTest extends BaseTest {
 
     private final MsgRxCb msgRxCb = new MsgRxCb();
 
+    @Override
     @Before
     public void setup() throws Exception {
+        super.setup();
         eventLoopGroup = new NioEventLoopGroup(1, executor);
         LOG.info("Setup type: " + type);
         ClassLoader cl = getClass().getClassLoader();
         int count = 0;
         for (Map.Entry<Long, List<QuorumServer>> entry :
                 qbastConfMap.entrySet()) {
-            org.apache.zookeeper.server.quorum.QuorumBroadcast qbcast
+            QuorumBroadcast qbcast
                     = QuorumBroadcastFactory.createQuorumBroadcast(type,
                     entry.getKey(), entry.getValue(),
                     serverMap.get(entry.getKey()).getElectionAddr(),
@@ -127,12 +130,12 @@ public class QuorumBroadcastTest extends BaseTest {
     }
 
     @SuppressWarnings("unchecked")
-    public QuorumBroadcastTest(final String type,
-                               final List<String> serverList,
-                               final long readTimeoutMsec,
-                               final long connectTimeoutMsec,
-                               final long keepAliveTimeoutMsec,
-                               final int keepAliveCount)
+    public QuorumVoteBroadcastTest(final String type,
+                                   final List<String> serverList,
+                                   final long readTimeoutMsec,
+                                   final long connectTimeoutMsec,
+                                   final long keepAliveTimeoutMsec,
+                                   final int keepAliveCount)
             throws ChannelException, QuorumPeerConfig.ConfigException {
         this.type = type;
         try {
@@ -166,21 +169,21 @@ public class QuorumBroadcastTest extends BaseTest {
         return Arrays.asList( new Object[][] {
                 //{ "nio", Arrays.asList("localhost:2888:15555",
                 // "localhost:2888:16666") },
+                /*
                 { "netty-ssl", Arrays.asList("localhost:2888:25555",
                         "localhost:2888:26666"), 0, 0, 0L, 0 },
                 { "netty-ssl", Arrays.asList("localhost:2888:25556",
                         "localhost:2888:26667"), 0, 10, 0L, 0 },
+                */
+                { "netty", Arrays.asList("localhost:2888:27777",
+                        "localhost:2888:28888",
+                        "localhost:2888:29999"), 0, 10, 0L, 0 },
                 { "netty-ssl", Arrays.asList("localhost:2888:25557",
                         "localhost:2888:26668"), 250, 100, 100, 3 },
                 /*
                 { "nio", Arrays.asList("localhost:2888:17777",
                 "localhost:2888:18888",
                         "localhost:19999") },
-                { "netty", Arrays.asList("localhost:2888:27777",
-                        "localhost:2888:28888",
-                        "localhost:2888:29999") },
-                */
-                /*
                 { "nio", Arrays.asList("localhost:2888:20001",
                         "localhost:2888:21111",
                         "localhost:2888:22222", "localhost:2888:23333",
@@ -245,12 +248,13 @@ public class QuorumBroadcastTest extends BaseTest {
         testBroadcast();
         Thread.sleep(10000);
     }
-    private org.apache.zookeeper.server.quorum.QuorumBroadcast getSingleSender() {
-        Iterator<Map.Entry<Long, org.apache.zookeeper.server.quorum.QuorumBroadcast>> iter
+
+    private QuorumBroadcast getSingleSender() {
+        Iterator<Map.Entry<Long, QuorumBroadcast>> iter
                 = qbcastMap.entrySet().iterator();
         int rnd = random.nextInt(qbcastMap.values().size());
         for (int i = 0; i < rnd && iter.hasNext(); i++, iter.next());
-        Map.Entry<Long, org.apache.zookeeper.server.quorum.QuorumBroadcast> sendEntry = iter.next();
+        Map.Entry<Long, QuorumBroadcast> sendEntry = iter.next();
         return sendEntry.getValue();
     }
 }

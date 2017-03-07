@@ -96,9 +96,9 @@ public class VoteViewTest extends BaseTest {
                 .maxPeerCount, this.readTimeoutMsec, this.connectTimeoutMsec,
                 this.keepAliveTimeoutMsec, this.keepAliveCount,
                 this.sidStart, this.sidEnd,
-                cl.getResource(keyStore.get(0)).getFile(),
+                keyStore.get(0),
                 keyPassword.get(0),
-                cl.getResource(trustStore.get(0)).getFile(),
+                trustStore.get(0),
                 trustPassword.get(0),
                 trustStoreCAAlias);
     }

@@ -54,17 +54,19 @@ public class QuorumSocketFactoryTest extends BaseTest {
             = LoggerFactory.getLogger(QuorumSocketFactoryTest.class);
 
     private final QuorumServer listenServer
-            = new QuorumServer(1, new InetSocketAddress("localhost",
+            = new QuorumServer(1, null, new InetSocketAddress("localhost",
             PortAssignment.unique()));
     private final QuorumServer client1
-            = new QuorumServer(2, new InetSocketAddress("localhost",
+            = new QuorumServer(2, null, new InetSocketAddress("localhost",
             PortAssignment.unique()));
     private final QuorumServer client2
-            = new QuorumServer(3, new InetSocketAddress("localhost",
+            = new QuorumServer(3, null, new InetSocketAddress("localhost",
             PortAssignment.unique()));
 
+    @Override
     @Before
-    public void setup() {
+    public void setup() throws Exception {
+        super.setup();
         this.sslEnabled = true;
     }
 

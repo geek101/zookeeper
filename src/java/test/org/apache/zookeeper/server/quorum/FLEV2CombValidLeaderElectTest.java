@@ -63,8 +63,10 @@ public class FLEV2CombValidLeaderElectTest extends FLEV2BaseTest {
                 timeoutUnit);
     }
 
+    @Override
     @Before
-    public void setup() {
+    public void setup() throws Exception {
+        super.setup();
         LOG.info("Setup with Ensemble Type: " + ensembleType +
                 ", Quorum size: " + this.quorumSize);
     }

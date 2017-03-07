@@ -20,13 +20,14 @@ import java.net.InetSocketAddress;
 import java.util.List;
 
 import org.apache.zookeeper.server.quorum.QuorumServer;
+import org.apache.zookeeper.server.quorum.netty.QuorumVoteBroadcast;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 import io.netty.channel.EventLoopGroup;
 
-public class QuorumBcastWithCnxMesh extends org.apache.zookeeper.server.quorum.netty.QuorumBroadcast {
+public class QuorumVoteBcastWithCnxMesh extends QuorumVoteBroadcast {
     private final QuorumCnxMesh quorumCnxMesh;
 
-    public QuorumBcastWithCnxMesh(
+    public QuorumVoteBcastWithCnxMesh(
             Long myId, List<QuorumServer> quorumServerList,
             InetSocketAddress electionAddr,
             EventLoopGroup eventLoopGroup,

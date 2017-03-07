@@ -34,6 +34,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.zookeeper.common.SSLContextCreator;
 import org.apache.zookeeper.common.X509Exception;
+import org.apache.zookeeper.server.quorum.netty.QuorumVoteBroadcast;
 import org.apache.zookeeper.server.quorum.util.Callback;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.quorum.util.NotNull;
@@ -69,7 +70,7 @@ public class VoteView extends VoteViewBase {
             throw new IllegalArgumentException("invalid event loop group");
         }
         this.eventLoopGroup = eventLoopGroup;
-        if (!(quorumBroadcast instanceof  org.apache.zookeeper.server.quorum.netty.QuorumBroadcast)){
+        if (!(quorumBroadcast instanceof QuorumVoteBroadcast)){
             throw new IllegalArgumentException("invalid quorum broadcast");
         }
         this.quorumBroadcast = quorumBroadcast;
@@ -201,7 +202,7 @@ public class VoteView extends VoteViewBase {
     }
 
     public final QuorumServer getServer() {
-        return new QuorumServer(this.getId(), this.electionAddr);
+        return new QuorumServer(this.getId(), null, this.electionAddr);
     }
 
     /**

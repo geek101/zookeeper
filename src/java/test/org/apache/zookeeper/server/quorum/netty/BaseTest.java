@@ -69,6 +69,8 @@ import org.apache.zookeeper.server.quorum.Vote;
 import org.apache.zookeeper.server.quorum.helpers.AsyncClientSocket;
 import org.apache.zookeeper.server.quorum.helpers.AsyncServerSocket;
 import org.apache.zookeeper.server.quorum.helpers.QuorumPeerDynCheckWrapper;
+import org.apache.zookeeper.server.quorum.helpers.X509ClusterBase;
+import org.apache.zookeeper.server.quorum.helpers.X509ClusterCASigned;
 import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.apache.zookeeper.server.quorum.util.QuorumX509Util;
@@ -82,6 +84,7 @@ import static io.netty.buffer.Unpooled.buffer;
 import static org.apache.zookeeper.common.ZKConfig.SSL_KEYSTORE_LOCATION;
 import static org.apache.zookeeper.common.ZKConfig.SSL_KEYSTORE_PASSWD;
 import static org.apache.zookeeper.common.ZKConfig.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.zookeeper.common.ZKConfig.SSL_TRUSTSTORE_PASSWD;
 import static org.apache.zookeeper.server.quorum.util.InitMessageCtx.PROTOCOL_VERSION;
 import static org.apache.zookeeper.server.quorum.util.InitMessageCtx.getAddrString;
 import static org.junit.Assert.assertTrue;
@@ -459,10 +462,8 @@ public class BaseTest {
         quorumPeerConfig.setProperty(SSL_KEYSTORE_LOCATION, keyStore);
         quorumPeerConfig.setProperty(SSL_KEYSTORE_PASSWD,
                 keyStorePassword);
-        quorumPeerConfig.setProperty(SSL_TRUSTSTORE_LOCATION,
-                trustStore);
-        quorumPeerConfig.setProperty(SSL_KEYSTORE_PASSWD,
-                trustPassword);
+        quorumPeerConfig.setProperty(SSL_TRUSTSTORE_LOCATION, trustStore);
+        quorumPeerConfig.setProperty(SSL_TRUSTSTORE_PASSWD, trustPassword);
         return quorumPeerConfig;
     }
 
@@ -480,12 +481,11 @@ public class BaseTest {
                                        final String keyPassword)
             throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException {
         final KeyStore keyStoreObj = X509Util.loadKeyStore(
-                cl.getResource(keyStore).getFile(), keyPassword);
+                keyStore, keyPassword);
         final Enumeration<String> aliases = keyStoreObj.aliases();
         if (!aliases.hasMoreElements()) {
             throw new IllegalAccessError("Keystore: "
-                    + cl.getResource(keyStore).getFile()
-                    + " has no alias");
+                    + keyStore + " has no alias");
         }
         final X509Certificate cert = (X509Certificate)keyStoreObj
                 .getCertificate(aliases.nextElement());

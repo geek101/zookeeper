@@ -109,16 +109,18 @@ public class VotingChannelMgrTest extends BaseTest {
         this.sidRunning = this.sidStart;
         this.sidEnd = sidEnd;
 
-        listenServer = new QuorumServer(this.sidRunning++,
+        listenServer = new QuorumServer(this.sidRunning++, null,
                 new InetSocketAddress("localhost",
                         PortAssignment.unique()));
-        client1 = new QuorumServer(this.sidRunning++,
+        client1 = new QuorumServer(this.sidRunning++, null,
                 new InetSocketAddress(
                         "localhost", PortAssignment.unique()));
     }
 
+    @Override
     @Before
     public void setup() throws Exception {
+        super.setup();
         eventLoopGroup = new NioEventLoopGroup(1, executor);
         LOG.info("Setup type: " + type);
         ClassLoader cl = getClass().getClassLoader();
