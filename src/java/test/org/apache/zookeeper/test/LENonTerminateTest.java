@@ -31,23 +31,23 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.zookeeper.PortAssignment;
 import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.quorum.Election;
-import org.apache.zookeeper.server.quorum.FLELostMessageTest;
 import org.apache.zookeeper.server.quorum.LeaderElection;
 import org.apache.zookeeper.server.quorum.QuorumPeer;
-import org.apache.zookeeper.server.quorum.Vote;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
+import org.apache.zookeeper.server.quorum.QuorumServer;
+import org.apache.zookeeper.server.quorum.Vote;
 import org.apache.zookeeper.server.quorum.flexible.QuorumMaj;
+import org.apache.zookeeper.server.quorum.util.QuorumSocketFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
 public class LENonTerminateTest extends ZKTestCase {
@@ -68,7 +68,7 @@ public class LENonTerminateTest extends ZKTestCase {
          */
         public Vote lookForLeader() throws InterruptedException {
             self.setCurrentVote(new Vote(self.getId(),
-                    self.getLastLoggedZxid()));
+                    self.getLastLoggedZxid(), self.getId()));
             // We are going to look for a leader by casting a vote for ourself
             byte requestBytes[] = new byte[4];
             ByteBuffer requestBuffer = ByteBuffer.wrap(requestBytes);
@@ -132,7 +132,7 @@ public class LENonTerminateTest extends ZKTestCase {
                         heardFrom.add(peerId);
                         //if(server.id != peerId){
                         Vote vote = new Vote(responseBuffer.getLong(),
-                                responseBuffer.getLong());
+                                responseBuffer.getLong(), server.id);
                         InetSocketAddress addr =
                             (InetSocketAddress) responsePacket
                             .getSocketAddress();
@@ -165,7 +165,7 @@ public class LENonTerminateTest extends ZKTestCase {
                 // for a dead peer
                 if (result.numValidVotes == 0) {
                     self.setCurrentVote(new Vote(self.getId(),
-                            self.getLastLoggedZxid()));
+                            self.getLastLoggedZxid(), self.getId()));
                 } else {
                     if (result.winner.getId() >= 0) {
                         self.setCurrentVote(result.vote);
@@ -219,6 +219,7 @@ public class LENonTerminateTest extends ZKTestCase {
             super(quorumPeers, snapDir, logDir, electionAlg,
                     myid,tickTime, initLimit,syncLimit, false,
                     ServerCnxnFactory.createFactory(clientPort, -1),
+                    QuorumSocketFactory.createWithoutSSL(),
                     new QuorumMaj(quorumPeers));
         }
 
@@ -229,7 +230,7 @@ public class LENonTerminateTest extends ZKTestCase {
     }
 
 
-    protected static final Logger LOG = LoggerFactory.getLogger(FLELostMessageTest.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(LENonTerminateTest.class);
 
     int count;
     HashMap<Long,QuorumServer> peers;
@@ -359,7 +360,7 @@ public class LENonTerminateTest extends ZKTestCase {
         DatagramSocket udpSocket = new DatagramSocket(server.addr.getPort());
         LOG.info("In MockServer");
         mockLatch.countDown();
-        Vote current = new Vote(2, 1);
+        Vote current = new Vote(2, 1, 2);
         for (int i=0;i<2;++i) {
             udpSocket.receive(packet);
             responseBuffer.rewind();

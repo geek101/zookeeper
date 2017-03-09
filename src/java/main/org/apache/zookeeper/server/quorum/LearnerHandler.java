@@ -29,13 +29,13 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Queue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 
 import org.apache.jute.BinaryInputArchive;
 import org.apache.jute.BinaryOutputArchive;
-import org.apache.jute.Record;
 import org.apache.zookeeper.KeeperException.SessionExpiredException;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.server.Request;
@@ -45,6 +45,7 @@ import org.apache.zookeeper.server.ZooKeeperThread;
 import org.apache.zookeeper.server.ZooTrace;
 import org.apache.zookeeper.server.quorum.Leader.Proposal;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
+import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.util.SerializeUtils;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.apache.zookeeper.txn.TxnHeader;
@@ -611,7 +612,8 @@ public class LearnerHandler extends ZooKeeperThread {
             		// do nothing
             	}
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | ExecutionException | ChannelException
+                | ElectionException e) {
             LOG.error("Unexpected exception causing shutdown", e);
         } catch (SnapshotThrottleException e) {
             LOG.error("too many concurrent snapshots: " + e);

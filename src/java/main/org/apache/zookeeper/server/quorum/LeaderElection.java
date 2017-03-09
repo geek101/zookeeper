@@ -27,17 +27,17 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Random;
 import java.util.Map.Entry;
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.zookeeper.jmx.MBeanRegistry;
+import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
+import org.apache.zookeeper.server.quorum.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.zookeeper.jmx.MBeanRegistry;
-import org.apache.zookeeper.server.quorum.Vote;
-import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
-import org.apache.zookeeper.server.quorum.QuorumPeer.ServerState;
 
 /**
  * @deprecated This class has been deprecated as of release 3.4.0. 
@@ -68,8 +68,8 @@ public class LeaderElection implements Election  {
     protected ElectionResult countVotes(HashMap<InetSocketAddress, Vote> votes, HashSet<Long> heardFrom) {
         final ElectionResult result = new ElectionResult();
         // Initialize with null vote
-        result.vote = new Vote(Long.MIN_VALUE, Long.MIN_VALUE);
-        result.winner = new Vote(Long.MIN_VALUE, Long.MIN_VALUE);
+        result.vote = new Vote(Long.MIN_VALUE, Long.MIN_VALUE, self.getId());
+        result.winner = new Vote(Long.MIN_VALUE, Long.MIN_VALUE, self.getId());
 
         // First, filter out votes from unheard-from machines. Then
         // make the views consistent. Sometimes peers will have
@@ -96,7 +96,7 @@ public class LeaderElection implements Election  {
             if (v.getZxid() < zxid) {
                 // This is safe inside an iterator as per
                 // http://download.oracle.com/javase/1.5.0/docs/api/java/util/Map.Entry.html
-                e.setValue(new Vote(v.getId(), zxid, v.getElectionEpoch(), v.getPeerEpoch(), v.getState()));
+                e.setValue(new Vote(v.getId(), zxid, v.getElectionEpoch(), v.getPeerEpoch(), self.getId(), v.getState()));
             }
         }
 
@@ -153,7 +153,7 @@ public class LeaderElection implements Election  {
 
         try {
             self.setCurrentVote(new Vote(self.getId(),
-                    self.getLastLoggedZxid()));
+                    self.getLastLoggedZxid(), self.getId()));
             // We are going to look for a leader by casting a vote for ourself
             byte requestBytes[] = new byte[4];
             ByteBuffer requestBuffer = ByteBuffer.wrap(requestBytes);
@@ -215,7 +215,7 @@ public class LeaderElection implements Election  {
                         heardFrom.add(peerId);
                         //if(server.id != peerId){
                             Vote vote = new Vote(responseBuffer.getLong(),
-                                responseBuffer.getLong());
+                                responseBuffer.getLong(), self.getId());
                             InetSocketAddress addr =
                                 (InetSocketAddress) responsePacket
                                 .getSocketAddress();
@@ -236,7 +236,7 @@ public class LeaderElection implements Election  {
                 // for a dead peer                 
                 if (result.numValidVotes == 0) {
                     self.setCurrentVote(new Vote(self.getId(),
-                            self.getLastLoggedZxid()));
+                            self.getLastLoggedZxid(), self.getId()));
                 } else {
                     if (result.winner.getId() >= 0) {
                         self.setCurrentVote(result.vote);
@@ -289,5 +289,13 @@ public class LeaderElection implements Election  {
             }
             self.jmxLeaderElectionBean = null;
         }
+    }
+
+    @Override
+    public Vote lookForLeader(final long peerEpoch, final long zxid)
+            throws ElectionException, InterruptedException, ExecutionException {
+        final String errStr = "Not implemented";
+        LOG.error(errStr);
+        throw new IllegalAccessError(errStr);
     }
 }

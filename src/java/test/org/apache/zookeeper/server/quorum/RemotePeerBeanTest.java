@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.net.InetSocketAddress;
 
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.junit.Test;
 
 public class RemotePeerBeanTest {

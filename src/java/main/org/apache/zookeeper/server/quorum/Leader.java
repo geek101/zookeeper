@@ -20,7 +20,6 @@ package org.apache.zookeeper.server.quorum;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -33,24 +32,26 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.jute.BinaryOutputArchive;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.common.Time;
+import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.server.FinalRequestProcessor;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.RequestProcessor;
 import org.apache.zookeeper.server.ZooKeeperCriticalThread;
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
+import org.apache.zookeeper.server.quorum.util.ChannelException;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * This class has the control logic for the Leader.
@@ -220,21 +221,21 @@ public class Leader {
         this.self = self;
         try {
             if (self.getQuorumListenOnAllIPs()) {
-                ss = new ServerSocket(self.getQuorumAddress().getPort());
+                ss = this.self.socketFactory.buildForServer(self,
+                        self.getQuorumAddress().getPort());
             } else {
-                ss = new ServerSocket();
+                ss = this.self.socketFactory.buildForServer(self,
+                        self.getQuorumAddress().getPort(),
+                        self.getQuorumAddress().getAddress());
             }
             ss.setReuseAddress(true);
-            if (!self.getQuorumListenOnAllIPs()) {
-                ss.bind(self.getQuorumAddress());
-            }
-        } catch (BindException e) {
+        } catch (IOException | X509Exception e) {
             if (self.getQuorumListenOnAllIPs()) {
                 LOG.error("Couldn't bind to port " + self.getQuorumAddress().getPort(), e);
             } else {
                 LOG.error("Couldn't bind to " + self.getQuorumAddress(), e);
             }
-            throw e;
+            throw new IOException(e);
         }
         this.zk = zk;
     }
@@ -407,7 +408,7 @@ public class Leader {
      * @throws IOException
      * @throws InterruptedException
      */
-    void lead() throws IOException, InterruptedException {
+    void lead() throws IOException, InterruptedException, ExecutionException, ChannelException, ElectionException {
         self.end_fle = Time.currentElapsedTime();
         long electionTimeTaken = self.end_fle - self.start_fle;
         self.setElectionTimeTaken(electionTimeTaken);
@@ -714,7 +715,7 @@ public class Leader {
      * @return True if committed, otherwise false.
      * @param a proposal p
      **/
-    synchronized public boolean tryToCommit(Proposal p, long zxid, SocketAddress followerAddr) {       
+    synchronized public boolean tryToCommit(Proposal p, long zxid, SocketAddress followerAddr) throws InterruptedException, ElectionException, IOException, ExecutionException, ChannelException {
        // make sure that ops are committed in order. With reconfigurations it is now possible
        // that different operations wait for different sets of acks, and we still want to enforce
        // that they are committed in order. Currently we only permit one outstanding reconfiguration
@@ -793,7 +794,7 @@ public class Leader {
      * @param sid, the id of the server that sent the ack
      * @param followerAddr
      */
-    synchronized public void processAck(long sid, long zxid, SocketAddress followerAddr) {        
+    synchronized public void processAck(long sid, long zxid, SocketAddress followerAddr) throws InterruptedException, ElectionException, ChannelException, ExecutionException, IOException {
         if (!allowedToCommit) return; // last op committed was a leader change - from now on 
                                      // the new leader should commit        
         if (LOG.isTraceEnabled()) {
@@ -1034,7 +1035,7 @@ public class Leader {
      * @param request
      * @return the proposal that is queued to send to all the members
      */
-    public Proposal propose(Request request) throws XidRolloverException {
+    public Proposal propose(Request request) throws Exception {
         /**
          * Address the rollover issue. All lower 32bits set indicate a new leader
          * election. Force a re-election instead. See ZOOKEEPER-1277
@@ -1254,7 +1255,7 @@ public class Leader {
     /**
      * Start up Leader ZooKeeper server and initialize zxid to the new epoch
      */
-    private synchronized void startZkServer() {
+    private synchronized void startZkServer() throws InterruptedException, ElectionException, IOException, ExecutionException, ChannelException {
         // Update lastCommitted and Db's zxid to a value representing the new epoch
         lastCommitted = zk.getZxid();
         LOG.info("Have quorum of supporters, sids: [ "

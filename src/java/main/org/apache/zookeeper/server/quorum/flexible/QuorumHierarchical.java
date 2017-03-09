@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.zookeeper.server.quorum.QuorumPeer.LearnerType;
-import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.QuorumServer;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 
 
@@ -361,6 +361,12 @@ public class QuorumHierarchical implements QuorumVerifier {
             return false;
         }
     }
+
+    @Override
+    public boolean containsQuorumFromCount(long quorumCount) {
+        throw new IllegalAccessError("Not implemented");
+    }
+
     public Map<Long, QuorumServer> getVotingMembers() {
        return participatingMembers;
    }

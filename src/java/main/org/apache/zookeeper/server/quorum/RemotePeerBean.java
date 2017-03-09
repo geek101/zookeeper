@@ -25,13 +25,13 @@ import org.apache.zookeeper.jmx.ZKMBeanInfo;
  * and the peer cannot be managed remotely. 
  */
 public class RemotePeerBean implements RemotePeerMXBean,ZKMBeanInfo {
-    private QuorumPeer.QuorumServer peer;
+    private QuorumServer peer;
     
-    public RemotePeerBean(QuorumPeer.QuorumServer peer){
+    public RemotePeerBean(QuorumServer peer){
         this.peer=peer;
     }
 
-    public void setQuorumServer(QuorumPeer.QuorumServer peer) {
+    public void setQuorumServer(QuorumServer peer) {
         this.peer = peer;
     }
 

@@ -18,11 +18,18 @@
 
 package org.apache.zookeeper.client;
 
-import org.apache.zookeeper.common.PathUtils;
-
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+
+import org.apache.zookeeper.SSLCertCfg;
+import org.apache.zookeeper.ServerCfg;
+import org.apache.zookeeper.common.PathUtils;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.zookeeper.common.StringUtils.split;
 
@@ -37,11 +44,13 @@ import static org.apache.zookeeper.common.StringUtils.split;
  * @see org.apache.zookeeper.ZooKeeper
  */
 public final class ConnectStringParser {
+    private static final Logger LOG = LoggerFactory
+            .getLogger(ConnectStringParser.class);
     private static final int DEFAULT_PORT = 2181;
 
     private final String chrootPath;
 
-    private final ArrayList<InetSocketAddress> serverAddresses = new ArrayList<InetSocketAddress>();
+    private final ArrayList<ServerCfg> serverCfgList = new ArrayList<>();
 
     /**
      * 
@@ -65,18 +74,38 @@ public final class ConnectStringParser {
             this.chrootPath = null;
         }
 
+
         List<String> hostsList = split(connectString,",");
         for (String host : hostsList) {
+            final String[] hostStrParts = host.split(":");
             int port = DEFAULT_PORT;
-            int pidx = host.lastIndexOf(':');
-            if (pidx >= 0) {
-                // otherwise : is at the end of the string, ignore
-                if (pidx < host.length() - 1) {
-                    port = Integer.parseInt(host.substring(pidx + 1));
+            boolean noPort = false;
+            if (hostStrParts.length > 1) {
+                try {
+                    port = Integer.parseInt(hostStrParts[1]);
+                } catch (NumberFormatException exp) {
+                    // ok nothing to do here!.
+                    noPort = true;
                 }
-                host = host.substring(0, pidx);
             }
-            serverAddresses.add(InetSocketAddress.createUnresolved(host, port));
+
+            try {
+                if (hostStrParts.length > 2 || noPort) {
+
+                    serverCfgList.add(
+                            new ServerCfg(hostStrParts[0],
+                                    InetSocketAddress.createUnresolved(
+                                            hostStrParts[0], port),
+                                    SSLCertCfg.parseCertCfgStr(host)));
+                } else {
+                    serverCfgList.add(
+                            new ServerCfg(hostStrParts[0],
+                                    InetSocketAddress.createUnresolved(
+                                            hostStrParts[0], port)));
+                }
+            } catch (QuorumPeerConfig.ConfigException exp) {
+                throw new IllegalArgumentException(exp);
+            }
         }
     }
 
@@ -84,7 +113,7 @@ public final class ConnectStringParser {
         return chrootPath;
     }
 
-    public ArrayList<InetSocketAddress> getServerAddresses() {
-        return serverAddresses;
+    public Collection<ServerCfg> getServersCfg() {
+        return Collections.unmodifiableCollection(serverCfgList);
     }
 }
